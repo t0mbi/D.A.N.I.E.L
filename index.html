@@ -1,0 +1,3130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delivery Route Optimizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCxJiuwW2ZkSuVUYaMGgkrRYzXzWLKVscs&libraries=geometry,streetView,places"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        /* Base Styles & Material Design Variables */
+        :root {
+            --md-primary-color: #007bff; /* Blue */
+            --md-primary-color-dark: #0056b3;
+            --md-secondary-color: #6c757d; /* Grey */
+            --md-secondary-color-dark: #5a6268;
+            --md-success-color: #28a745; /* Green */
+            --md-success-color-dark: #218838;
+            --md-warning-color: #ffc107; /* Yellow */
+            --md-warning-text-color: #856404;
+            --md-danger-color: #dc3545; /* Red */
+            --md-danger-color-dark: #c82333;
+            --md-info-color: #17a2b8; /* Info blue/teal */
+            --md-info-text-color: #0c5460;
+            --md-text-color: #333;
+            --md-text-color-light: #757575;
+            --md-bg-color: #f4f7f6;
+            --md-surface-color: #ffffff;
+            --md-border-radius: 4px;
+            --md-border-radius-larger: 6px;
+            --md-input-bg-color: #f5f5f5;
+            --md-input-border-color: #e0e0e0;
+            --md-input-focus-border-color: var(--md-primary-color);
+            --md-panel-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --md-button-hover-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 2px 3px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--md-text-color);
+            background-color: var(--md-bg-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #topCenterControls {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--md-surface-color);
+            padding: 6px 10px;
+            border-radius: var(--md-border-radius-larger);
+            box-shadow: var(--md-panel-shadow);
+        }
+
+        .top-control-button {
+            color: white;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: var(--md-border-radius);
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            text-transform: uppercase;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.14);
+        }
+        .top-control-button i { margin-right: 5px; }
+
+        .top-control-button:hover {
+            box-shadow: var(--md-button-hover-shadow);
+            transform: translateY(-1px);
+        }
+        .top-control-button:active {
+            transform: translateY(0px);
+            box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14);
+        }
+
+        #clearAllBtnPageTop { background-color: var(--md-danger-color); }
+        #clearAllBtnPageTop:hover { background-color: var(--md-danger-color-dark); }
+
+        /* Route Options Button and Dropdown */
+        .route-options-container {
+            position: relative;
+        }
+        #routeOptionsBtnMain {
+            background-color: var(--md-secondary-color);
+        }
+        #routeOptionsBtnMain:hover {
+            background-color: var(--md-secondary-color-dark);
+        }
+        .route-options-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: var(--md-surface-color);
+            border: 1px solid var(--md-input-border-color);
+            border-radius: var(--md-border-radius);
+            box-shadow: var(--md-panel-shadow);
+            z-index: 35;
+            min-width: 200px;
+            padding: 5px 0;
+        }
+        .route-options-dropdown button, .route-options-dropdown .dropdown-item-container {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            background-color: transparent;
+            color: var(--md-text-color);
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            text-transform: none;
+            cursor: pointer;
+        }
+        .route-options-dropdown button:hover, .route-options-dropdown .dropdown-item-container:hover {
+            background-color: var(--md-input-bg-color);
+            color: var(--md-primary-color);
+            transform: none;
+        }
+        .route-options-dropdown button i, .route-options-dropdown .dropdown-item-container i {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+        }
+        .dropdown-item-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        #actualDepartureTimeInput {
+             padding: 3px 5px;
+             border: 1px solid var(--md-input-border-color);
+             border-radius: var(--md-border-radius);
+             font-size: 0.8rem;
+             max-width: 90px;
+        }
+
+
+        #mainContentArea {
+            flex-grow: 1;
+            position: relative;
+            padding-top: 0;
+        }
+
+        #leftFloatingPanel {
+            position: absolute;
+            top: 75px;
+            left: 20px;
+            width: 420px;
+            min-width: 250px;
+            max-width: 70%;
+            max-height: calc(100vh - 95px);
+            overflow-y: auto;
+            overflow-x: visible;
+            z-index: 10;
+            background-color: transparent;
+            border-radius: var(--md-border-radius-larger);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            scroll-behavior: smooth;
+        }
+        #leftFloatingPanel::-webkit-scrollbar {
+            display: none;
+        }
+
+        #panelContentWrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #resizeHandle {
+            position: absolute;
+            right: -4px;
+            top: 0;
+            width: 8px;
+            height: 100%;
+            cursor: ew-resize;
+            z-index: 11;
+        }
+
+
+        #inputPanel, #routeSteps {
+            padding: 15px;
+            background-color: var(--md-surface-color);
+            border-radius: var(--md-border-radius-larger);
+            box-shadow: var(--md-panel-shadow);
+            flex-shrink: 0;
+        }
+        #routeSteps {
+            display: block;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, opacity 0.3s ease-out, padding-top 0.5s ease-out, padding-bottom 0.5s ease-out;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        #routeSteps.visible {
+            max-height: 1000px; /* Adjust as needed for content */
+            opacity: 1;
+            padding-top: 15px;
+            padding-bottom: 15px;
+        }
+
+
+        #inputPanel .panel-title {
+            font-size: 1.05em; /* Adjusted font size */
+            line-height: 1.3; /* Adjusted line height */
+            font-weight: 500;
+            color: var(--md-primary-color);
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .route-steps-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .route-steps-header h2 {
+            margin: 0;
+            color: var(--md-primary-color);
+            font-weight: 500;
+            font-size: 1.3em;
+            flex-grow: 1;
+        }
+
+
+        .address-input-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+        .address-input-group label {
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: var(--md-text-color-light);
+            font-size: 0.85rem;
+        }
+        .address-input-group textarea,
+        .address-input-group input[type="text"] {
+            width: 100%;
+            padding: 10px 8px;
+            background-color: var(--md-input-bg-color);
+            border: none;
+            border-bottom: 1px solid var(--md-input-border-color);
+            border-radius: var(--md-border-radius) var(--md-border-radius) 0 0;
+            resize: vertical;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+        .address-input-group input[type="text"]:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+        .address-input-group textarea:focus,
+        .address-input-group input[type="text"]:focus {
+            outline: none;
+            border-bottom: 2px solid var(--md-input-focus-border-color);
+            background-color: #e9e9e9;
+            margin-bottom: -1px; /* Compensate for thicker border */
+        }
+
+        #addAddressBtn, #calculateRouteBtn, #openImportAddressesModalBtn, #copySummaryBtn { /* Added #copySummaryBtn */
+             color: white;
+             padding: 8px 15px;
+             border: none;
+             border-radius: var(--md-border-radius);
+             cursor: pointer;
+             font-size: 0.85rem;
+             transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+             text-transform: uppercase;
+             font-weight: 500;
+             display: inline-flex;
+             align-items: center;
+             justify-content: center;
+             letter-spacing: 0.5px;
+             box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12);
+        }
+         #addAddressBtn:hover, #calculateRouteBtn:hover, #openImportAddressesModalBtn:hover, #copySummaryBtn:hover { /* Added #copySummaryBtn */
+             box-shadow: var(--md-button-hover-shadow);
+             transform: translateY(-1px);
+         }
+         #addAddressBtn:active, #calculateRouteBtn:active, #openImportAddressesModalBtn:active, #copySummaryBtn:active { /* Added #copySummaryBtn */
+             transform: translateY(0);
+             box-shadow: 0 1px 1px 0 rgba(0,0,0,0.14);
+         }
+
+        #addAddressBtn { background-color: var(--md-success-color); }
+        #addAddressBtn:hover { background-color: var(--md-success-color-dark); }
+
+
+        #calculateRouteBtn {
+            background-color: var(--md-success-color); /* Changed to green */
+            padding: 10px 18px;
+            font-size: 0.95rem;
+        }
+        #calculateRouteBtn:hover { background-color: var(--md-success-color-dark); }
+
+        #openImportAddressesModalBtn {
+            background-color: var(--md-secondary-color);
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        #openImportAddressesModalBtn:hover { background-color: var(--md-secondary-color-dark); }
+
+        #copySummaryBtn { /* Style for the new copy button */
+            background-color: var(--md-info-color);
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            margin-left: 8px; /* Space it from other elements */
+        }
+        #copySummaryBtn:hover { background-color: var(--md-info-color-dark); }
+
+
+        #addressList {
+            margin-bottom: 12px;
+            padding: 0;
+            list-style: none;
+            width: 100%;
+            max-height: 120px; /* Adjust as needed */
+            overflow-y: auto;
+            border: 1px solid var(--md-input-border-color); /* Added border */
+        }
+        #addressList li {
+            background-color: #f9f9f9;
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee; /* Lighter border between items */
+            margin-bottom: 0; /* Remove individual margin */
+            border-radius: 0; /* No border radius for list items */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            cursor: grab; /* For drag and drop */
+        }
+        #addressList li:active {
+            cursor: grabbing;
+            background-color: #e0e0e0;
+        }
+         #addressList li:last-child {
+            border-bottom: none; /* No border for the last item */
+        }
+        #addressList li .address-text-container { /* Container for text and potentially icons */
+            margin-right: 5px;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #addressList li .address-text-container span {
+             word-break: break-all; /* Ensure long addresses wrap */
+        }
+
+        #addressList li button { /* Style for remove button */
+            background-color: transparent;
+            color: var(--md-danger-color);
+            border: none;
+            padding: 3px; /* Small padding */
+            border-radius: 50%; /* Circular button */
+            cursor: pointer;
+            font-size: 0.8rem; /* Small icon */
+            transition: background-color 0.2s ease, color 0.2s ease;
+            line-height: 1;
+            flex-shrink: 0; /* Prevent button from shrinking */
+        }
+        #addressList li button:hover {
+            background-color: rgba(220, 53, 69, 0.1); /* Subtle background on hover */
+            color: var(--md-danger-color-dark);
+        }
+
+        #routeSteps ol {
+            padding-left: 18px; /* Indent list items */
+            width: 100%;
+            color: var(--md-text-color);
+            margin-bottom: 8px; /* Space below the list */
+            position: relative; /* For absolute positioning of pseudo-elements if needed */
+        }
+        #routeSteps li {
+            margin-bottom: 8px; /* Space between list items */
+            padding: 5px 0;  /* Padding above and below text */
+            line-height: 1.4; /* Improve readability */
+            border-bottom: 1px solid #f0f0f0;
+            /* cursor: default; /* Changed to grab for draggable items */
+            position: relative; /* For Street View indicator positioning */
+        }
+        #routeSteps li[draggable="true"] { /* Style for draggable route steps */
+            cursor: grab;
+        }
+        #routeSteps li[draggable="true"]:active {
+             cursor: grabbing;
+             background-color: #e0e0e0;
+        }
+        #routeSteps li.has-street-view:hover {
+            background-color: #f0f8ff; /* Light blue highlight on hover for SV items */
+        }
+         #routeSteps li:last-child {
+            border-bottom: none;
+        }
+        .street-view-indicator {
+            font-size: 0.9em; /* Slightly smaller than text */
+            color: var(--md-primary-color);
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        .street-view-indicator:hover {
+            opacity: 0.7;
+        }
+
+        .travel-time {
+            font-size: 0.8em; /* Smaller font for travel time */
+            color: var(--md-text-color-light);
+        }
+
+        #startingAddressDisplay, #finishingAddressDisplay { /* For start/finish display in route panel */
+            padding: 10px;
+            border-radius: var(--md-border-radius-larger);
+            width: 100%;
+            box-sizing: border-box;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+        #startingAddressDisplay {
+            background-color: #e0f2f1; /* Light teal */
+            border: 1px solid #a7ffeb; /* Teal border */
+            margin-bottom: 12px; /* Space below */
+        }
+        #finishingAddressDisplay {
+            background-color: #e6fffa; /* Lighter teal */
+            border: 1px solid #b2f5ea; /* Lighter teal border */
+            margin-top: 12px; /* Space above */
+        }
+
+
+        #totalDistanceBox, #totalTimeBox, #totalJobsRouteBox { /* For summary boxes */
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: var(--md-border-radius);
+            padding: 6px 10px; /* Smaller padding */
+            width: auto;
+            text-align: center;
+            font-size: 0.85em; /* Slightly smaller font */
+            font-weight: 500;
+            color: var(--md-text-color);
+            display: inline-block;
+        }
+         #totalJobsRouteBox { /* Specific for jobs count in route panel */
+             margin-left: auto; /* Pushes it to the right in flex container */
+             padding: 5px 8px;
+             font-size: 0.8em;
+         }
+        #distanceTimeContainer {
+            display: flex;
+            gap: 8px; /* Space between items */
+            margin-bottom: 12px; /* Space below container */
+            width: 100%;
+            flex-wrap: wrap; /* Allow items to wrap if not enough space */
+            align-items: center; /* Align items vertically */
+        }
+        #distanceTimeContainer #totalDistanceBox,
+        #distanceTimeContainer #totalTimeBox {
+             margin-right: 8px; /* Add some margin to the right of these boxes */
+        }
+
+
+        #topInputGroup { /* Container for start/finish address inputs */
+            display: flex;
+            flex-direction: column; /* Stack inputs vertically */
+            margin-bottom: 15px; /* Space below group */
+            width: 100%;
+            gap: 12px; /* Space between input groups */
+        }
+        #topInputGroup .address-input-group { /* Individual address input group within top group */
+            width: 100%;
+            margin-bottom: 0; /* Remove individual margin as gap is used */
+        }
+        .finish-address-line { /* For finish address input and "Return to Start" checkbox */
+            display: flex;
+            align-items: center; /* Align items vertically */
+            gap: 8px; /* Space between input and checkbox */
+        }
+        .finish-address-line .address-input-group {
+            flex-grow: 1; /* Allow input to take available space */
+        }
+        #returnToStartContainer {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0; /* Prevent checkbox container from shrinking */
+        }
+        #returnToStartContainer label {
+            margin-left: 4px;
+            font-size: 0.85rem;
+            color: var(--md-text-color-light);
+            white-space: nowrap;
+        }
+
+
+        #buttonContainer { /* Container for calculate route button */
+            display: flex;
+            align-items: center; /* Center button vertically */
+            margin-top: 12px; /* Space above button */
+            width: 100%;
+            justify-content: center; /* Center button horizontally */
+            flex-wrap: wrap; /* Allow wrapping if needed */
+            gap: 12px; /* Space if multiple buttons are added */
+        }
+
+        #addressLabelAndJobsContainer {
+            display: flex;
+            justify-content: space-between; /* Label on left, jobs box on right */
+            align-items: baseline; /* Align text baselines */
+            width: 100%;
+            margin-bottom: 4px; /* Small space below */
+            margin-top: 12px; /* Space above */
+        }
+        #addressLabelAndJobsContainer label { /* "Added Addresses:" label */
+            margin-bottom: 0; /* Remove default margin */
+            font-weight: 500; /* Make it bold */
+            color: var(--md-text-color-light); /* Light text color */
+            font-size: 0.9em; /* Slightly smaller */
+        }
+
+        #totalJobsBox {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: var(--md-border-radius);
+            padding: 5px 8px; /* Small padding */
+            text-align: center;
+            font-size: 0.85em; /* Slightly smaller font */
+            font-weight: 500;
+        }
+
+        #map {
+            height: 100%; /* Full height of its container */
+            width: 100%;  /* Full width of its container */
+            position: absolute; /* Position relative to mainContentArea */
+            top: 0;
+            left: 0;
+            z-index: 1; /* Behind floating panel */
+        }
+
+        /* Modal Styles (Generic) */
+        .modal-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* High z-index to be on top */
+            padding: 15px; /* Padding for smaller screens */
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background-color: var(--md-surface-color);
+            padding: 20px; /* Generous padding */
+            border-radius: var(--md-border-radius-larger); /* Rounded corners */
+            box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 500px; /* Max width for modal */
+            text-align: left;
+            box-sizing: border-box;
+            position: relative; /* For potential absolute positioned elements inside */
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--md-text-color);
+            font-size: 1.15rem; /* Slightly larger title */
+            font-weight: 500;
+            margin-bottom: 12px; /* Space below title */
+        }
+        .modal-content textarea, .modal-content input[type="text"] { /* Consistent input styling */
+            width: 100%;
+            padding: 10px 8px;
+            background-color: var(--md-input-bg-color);
+            border: none;
+            border-bottom: 1px solid var(--md-input-border-color);
+            border-radius: var(--md-border-radius) var(--md-border-radius) 0 0;
+            resize: vertical;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+        .modal-content textarea:focus, .modal-content input[type="text"]:focus {
+            outline: none;
+            border-bottom: 2px solid var(--md-input-focus-border-color);
+            background-color: #e9e9e9;
+            margin-bottom: -1px; /* Compensate for thicker border */
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end; /* Align buttons to the right */
+            gap: 8px; /* Space between buttons */
+            margin-top: 15px; /* Space above buttons */
+        }
+        .modal-buttons button, .modal-buttons a.button-like { /* Consistent button styling */
+             padding: 8px 15px;
+             border-radius: var(--md-border-radius);
+             cursor: pointer;
+             font-size: 0.85rem;
+             font-weight: 500;
+             text-transform: uppercase;
+             transition: background-color 0.2s ease;
+             border: none; /* Remove default border */
+             text-decoration: none; /* For a.button-like */
+             display: inline-flex;
+             align-items: center;
+        }
+        .modal-buttons .close-modal-btn { /* Specific style for close button */
+            background-color: var(--md-secondary-color);
+            color: white;
+        }
+        .modal-buttons .close-modal-btn:hover {
+            background-color: var(--md-secondary-color-dark);
+        }
+        .modal-buttons .action-btn { /* Specific style for action button */
+            background-color: var(--md-primary-color);
+            color: white;
+        }
+        .modal-buttons .action-btn:hover {
+            background-color: var(--md-primary-color-dark);
+        }
+
+
+        /* StreetView Display (No longer a modal overlay) */
+        #streetViewDisplayContainer {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1075; /* High z-index */
+            padding: 5px; /* Small padding for shadow */
+            background-color: rgba(0,0,0,0.7); /* Darker semi-transparent bg for image frame */
+            border-radius: var(--md-border-radius-larger);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            /* flex-direction: column;  Removed as sv-button-wrapper handles layout now */
+            /* align-items: center; */
+        }
+        #streetViewDisplayContainer.enlarged {
+            /* Enlarged styles will be handled by JS changing image size */
+        }
+        #streetViewDisplayImage {
+            display: block;
+            width: 350px; /* Initial small size */
+            height: 250px;
+            object-fit: cover;
+            cursor: pointer; /* To indicate clickable for enlarge/shrink */
+            border: 2px solid white; /* White border around image */
+            border-radius: var(--md-border-radius);
+            transition: width 0.3s ease-in-out, height 0.3s ease-in-out;
+            position: relative; /* For positioning the button on top */
+        }
+        #streetViewDisplayContainer.enlarged #streetViewDisplayImage {
+            width: 600px; /* Enlarged size */
+            height: 450px;
+        }
+        .sv-button-wrapper { /* Wrapper for the button */
+            position: absolute; /* Position relative to the image container */
+            bottom: 8px; /* Space from bottom of image */
+            left: 8px;  /* Space from left of image */
+            z-index: 2; /* Ensure button is above image if overlapping (though it shouldn't) */
+        }
+        #svOpenInMapsBtnBottom {
+            display: inline-block;
+            padding: 5px 10px; /* Slightly smaller padding */
+            background-color: var(--md-primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--md-border-radius); /* Standard border radius */
+            font-size: 0.8rem; /* Slightly smaller font */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: background-color 0.2s ease;
+        }
+        #svOpenInMapsBtnBottom:hover {
+            background-color: var(--md-primary-color-dark);
+        }
+
+        /* Street View Hover Preview */
+        #streetViewHoverPreview {
+            display: none;
+            position: fixed; /* Changed to fixed for viewport positioning */
+            width: 150px;
+            height: 100px;
+            border: 2px solid var(--md-primary-color);
+            background-color: #fff;
+            z-index: 1080; /* Very high z-index */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            pointer-events: none; /* Allow clicks to pass through to map if needed */
+        }
+        #streetViewHoverPreview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+
+        /* Normal Notification Styles */
+        #addressProcessingNotification {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 60px; /* Below top controls */
+            right: 15px;
+            background-color: var(--md-warning-color); /* Default to warning */
+            color: var(--md-warning-text-color); /* Default text for warning */
+            padding: 10px 15px; /* Padding */
+            border-radius: var(--md-border-radius-larger); /* Rounded corners */
+            border: 1px solid #ffeeba; /* Default border for warning */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1001; /* Above map, below modals */
+            max-width: 350px;
+            opacity: 0;
+            transform: translateX(100%); /* Start off-screen to the right */
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+        #addressProcessingNotification.show {
+            opacity: 1;
+            transform: translateX(0); /* Slide in */
+        }
+        #addressProcessingNotification h4 {
+            margin-top: 0;
+            margin-bottom: 5px; /* Space below title */
+            font-weight: 700; /* Bold title */
+        }
+        #addressProcessingNotification ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.9em;
+            list-style-type: disc;
+        }
+         #addressProcessingNotification li {
+            margin-bottom: 3px; /* Space between messages */
+        }
+
+        /* Error Notification Container Styles */
+        #errorNotificationContainer {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 60px; /* Below top controls */
+            right: 15px;
+            background-color: var(--md-danger-color); /* Red for errors */
+            color: white; /* White text for errors */
+            padding: 10px 15px; /* Padding */
+            border-radius: var(--md-border-radius-larger); /* Rounded corners */
+            border: 1px solid var(--md-danger-color-dark); /* Darker red border */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1002; /* Above normal notifications */
+            max-width: 350px;
+            opacity: 0;
+            transform: translateX(100%); /* Start off-screen to the right */
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+        #errorNotificationContainer.show {
+            display: flex;
+            flex-direction: column; /* Stack title and list */
+            opacity: 1;
+            transform: translateX(0); /* Slide in */
+        }
+        #errorNotificationContainer .error-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+        #errorNotificationContainer h4 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            font-weight: 700;
+            flex-grow: 1;
+        }
+        #errorNotificationContainer ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.9em;
+            list-style-type: disc;
+            width: 100%; /* Ensure list takes full width */
+        }
+        #errorNotificationContainer li {
+            margin-bottom: 3px;
+        }
+        #errorNotificationContainer li.editable-error:hover { /* Style for clickable errors */
+            cursor: pointer;
+            text-decoration: underline;
+            opacity: 0.8;
+        }
+        .error-notification-close-btn { /* Style for the close (X) button */
+            background: transparent;
+            border: none;
+            color: white; /* Ensure contrast */
+            font-size: 1.3rem; /* Make it larger */
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 0 0 10px; /* Add some padding to the left */
+            line-height: 0.8; /* Adjust line height for better vertical alignment */
+            align-self: flex-start; /* Align to the top of the header */
+        }
+        .error-notification-close-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* Inline edit for failed addresses */
+        .inline-edit-failed-address-input {
+            width: calc(100% - 10px); /* Full width minus padding */
+            padding: 3px;
+            margin-bottom: 3px;
+            border: 1px solid var(--md-input-border-color);
+            border-radius: var(--md-border-radius);
+            font-size: 0.85em;
+            color: var(--md-text-color); /* Ensure text is visible */
+        }
+        .inline-edit-failed-address-btn {
+            padding: 2px 5px;
+            font-size: 0.75em;
+            margin-right: 3px;
+            border-radius: var(--md-border-radius);
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .inline-edit-retry-btn {
+            background-color: var(--md-primary-color);
+            color: white;
+        }
+        .inline-edit-retry-btn:hover {
+            background-color: var(--md-primary-color-dark);
+        }
+        .inline-edit-cancel-btn {
+            background-color: var(--md-secondary-color);
+            color: white;
+        }
+        .inline-edit-cancel-btn:hover {
+            background-color: var(--md-secondary-color-dark);
+        }
+
+        /* Loading Spinner Styles */
+        #loadingOverlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            z-index: 2000; /* Very high z-index */
+            justify-content: center;
+            align-items: center;
+        }
+        .loader {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid var(--md-primary-color); /* Blue */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+
+        /* Styles for InfoWindow content */
+        .gm-style .gm-style-iw-c { /* Outer container of InfoWindow */
+            padding: 0px !important; /* Remove default padding */
+             border-radius: var(--md-border-radius-larger) !important;
+        }
+         .gm-style .gm-style-iw-d { /* Inner content container */
+            overflow: hidden !important; /* Prevent scrollbars from Google */
+            padding: 0 !important;
+            max-height: none !important; /* Allow our content to define height */
+        }
+        .custom-infowindow-content {
+            padding: 10px; /* Our desired padding */
+            font-size: 0.85em; /* Base font size */
+            line-height: 1.4;
+            max-width: 280px; /* Control max width */
+            word-wrap: break-word; /* Ensure long addresses wrap */
+        }
+        .custom-infowindow-content strong { /* For the main address/title */
+            display: block;
+            margin-bottom: 8px; /* Increased space */
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+        .marker-actions {
+            margin-top: 8px; /* Increased space */
+            display: flex;
+            gap: 10px; /* Increased gap */
+            justify-content: flex-start; /* Align icons to the left */
+        }
+        .marker-action-icon {
+            color: var(--md-primary-color);
+            cursor: pointer;
+            font-size: 1.3em; /* Slightly larger icons */
+            padding: 4px; /* More clickable area */
+            border-radius: var(--md-border-radius);
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .marker-action-icon:hover {
+            background-color: #e9e9e9; /* Subtle background on hover */
+            color: var(--md-primary-color-dark);
+        }
+        .marker-action-icon.delete {
+            color: var(--md-danger-color);
+        }
+        .marker-action-icon.delete:hover {
+            color: var(--md-danger-color-dark);
+        }
+        /* Hide default Google Maps close button */
+        .gm-style-iw-c button {
+            display: none !important;
+        }
+
+        /* Temporary message for copy feedback */
+        #copyFeedback {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--md-success-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: var(--md-border-radius);
+            z-index: 2000; /* High z-index */
+            font-size: 0.9em;
+        }
+
+
+    </style>
+</head>
+<body onload="initMap()">
+    <!-- Top Center Controls for Clear All and Route Options -->
+    <div id="topCenterControls">
+        <button id="clearAllBtnPageTop" class="top-control-button" onclick="clearAllAddresses()" title="Clear All">
+            <i class="fas fa-trash-alt"></i> Clear All
+        </button>
+
+        <div class="route-options-container">
+            <button id="routeOptionsBtnMain" class="top-control-button" onclick="toggleRouteOptions()">
+                <i class="fas fa-cogs"></i> Route Options
+            </button>
+            <div class="route-options-dropdown" id="routeOptionsDropdown">
+                <button id="toggleTrafficBtn" class="top-control-button" onclick="toggleTraffic()" title="Toggle Traffic Layer" style="color:var(--md-text-color); background-color:transparent;">
+                    <i class="fas fa-traffic-light"></i> Show Traffic
+                </button>
+                <button id="saveRouteBtn" class="top-control-button" onclick="saveRoute()" title="Save Current Route" style="color:var(--md-text-color); background-color:transparent;">
+                    <i class="fas fa-save"></i> Save Route
+                </button>
+                <button id="loadRouteBtn" class="top-control-button" onclick="loadRoute()" title="Load Last Saved Route" style="color:var(--md-text-color); background-color:transparent;">
+                    <i class="fas fa-folder-open"></i> Load Route
+                </button>
+                <button id="printRouteBtnTop" class="top-control-button" onclick="printRoute()" title="Print Route" style="display:none; color:var(--md-text-color); background-color:transparent;">
+                    <i class="fas fa-print"></i> Print Route
+                </button>
+                 <div class="dropdown-item-container">
+                    <button id="changeStartTimeBtn" class="top-control-button" onclick="toggleTimeInput()" style="color:var(--md-text-color); background-color:transparent; flex-grow:1;">
+                        <i class="fas fa-clock"></i> Change Start Time
+                    </button>
+                    <input type="time" id="actualDepartureTimeInput" value="07:00" style="margin-left: auto;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area for Map and Left Panel -->
+    <div id="mainContentArea">
+        <div id="leftFloatingPanel">
+            <div id="panelContentWrapper"> <!-- Wrapper for input and route steps panels -->
+                <div id="inputPanel">
+                    <h1 class="panel-title">Dynamic Analysis & Navigation for Increased Efficiency in Logistics</h1>
+                    <!-- Starting and Finishing Address Inputs -->
+                    <div id="topInputGroup">
+                        <div class="address-input-group" id="startAddressInputGroup">
+                            <label for="startAddress">Starting Address:</label>
+                            <input type="text" id="startAddress">
+                        </div>
+                        <div class="finish-address-line">
+                            <div class="address-input-group">
+                                <label for="finishingAddress">Finishing Address:</label>
+                                <input type="text" id="finishingAddress" placeholder="Enter finishing address">
+                            </div>
+                            <div id="returnToStartContainer">
+                                <input type="checkbox" id="returnToStartCb">
+                                <label for="returnToStartCb">Return to Start</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Import Addresses Button -->
+                    <button id="openImportAddressesModalBtn" type="button">Import Addresses</button>
+
+                    <!-- Added Addresses List Section -->
+                    <div id="addressLabelAndJobsContainer">
+                        <label>Added Addresses:</label>
+                        <div id="totalJobsBox">
+                            Total Jobs Added: <span id="jobCount">0</span>
+                        </div>
+                    </div>
+                    <ul id="addressList"></ul>
+
+                    <!-- Calculate Route Button -->
+                    <div id="buttonContainer">
+                        <button id="calculateRouteBtn" onclick="calculateRoute()">
+                             <i class="fas fa-calculator"></i> Calculate Route
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Route Steps Display Panel -->
+                <div id="routeSteps"> <!-- Initially hidden, made visible by JS -->
+                    <div class="route-steps-header">
+                        <h2>Route Details</h2>
+                        <div id="totalJobsRouteBox"></div> <!-- Total jobs in calculated route -->
+                    </div>
+                    <div id="startingAddressDisplay"></div> <!-- Display for starting address of route -->
+                    <div id="distanceTimeContainer">
+                        <div id="totalDistanceBox"></div>
+                        <div id="totalTimeBox"></div>
+                        <button id="copySummaryBtn" onclick="copyRouteSummary()" title="Copy Route Summary">
+                            <i class="fas fa-copy"></i> Copy Summary
+                        </button>
+                    </div>
+                    <ol id="routeStepsList"></ol> <!-- Ordered list for route steps -->
+                    <div id="finishingAddressDisplay"></div> <!-- Display for finishing address of route -->
+                    </div>
+            </div>
+            <div id="resizeHandle"></div> <!-- Handle for resizing the left panel -->
+        </div>
+
+        <div id="map"></div> <!-- Google Map display area -->
+    </div>
+
+    <!-- Modal for Importing Addresses -->
+    <div id="importAddressesModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Enter Addresses to Import</h3>
+            <div class="address-input-group" style="width:100%;"> <!-- Ensure textarea takes full width -->
+                <textarea id="address" placeholder="Enter addresses, one per line" rows="18"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="close-modal-btn" onclick="closeImportModal()">Back</button>
+                <button id="addAddressBtn" class="action-btn" onclick="addAddressesFromModal()">Add Addresses</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Street View Display (non-modal) -->
+    <div id="streetViewDisplayContainer">
+        <img id="streetViewDisplayImage" src="https://placehold.co/350x250/e0e0e0/909090?text=Street+View" alt="Street View" onclick="toggleStreetViewDisplaySize()">
+        <div class="sv-button-wrapper">
+            <a id="svOpenInMapsBtnBottom" href="#" target="_blank">Open in Google Maps</a>
+        </div>
+    </div>
+
+    <!-- Street View Hover Preview -->
+    <div id="streetViewHoverPreview"><img src="https://placehold.co/150x100/e0e0e0/909090?text=SV" alt="Street View Preview"></div>
+
+    <!-- Notification for Address Processing -->
+    <div id="addressProcessingNotification">
+        <h4 id="notificationTitle">Address Processing Notes:</h4>
+        <ul id="notificationMessagesList"></ul>
+    </div>
+
+    <!-- Notification Container for Errors -->
+    <div id="errorNotificationContainer">
+        <div class="error-header">
+            <h4 id="errorNotificationTitle">Error(s):</h4>
+            <button class="error-notification-close-btn" onclick="this.closest('#errorNotificationContainer').style.display='none'; this.closest('#errorNotificationContainer').classList.remove('show'); errorNotificationMessagesListElem.innerHTML = '';">×</button>
+        </div>
+        <ul id="errorNotificationMessagesList"></ul>
+    </div>
+
+    <!-- Loading Spinner Overlay -->
+    <div id="loadingOverlay">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Copy Feedback Message -->
+    <div id="copyFeedback">Copied to clipboard!</div>
+
+
+    <script>
+        // Global variables for map and services
+        let addresses = []; // Stores successfully geocoded addresses {originalInput, processedInput, isLikelySuburbOnlyMapped, location, googleFormattedAddress, geocodeResult, id}
+        let startingAddress = ''; // Stores the validated starting address string
+        let finishingAddressInputString = ""; // Stores the raw input for finishing address
+        let map;
+        let directionsService;
+        let directionsRenderer;
+        let geocoder;
+        let streetViewService; // For fetching Street View panoramas
+        let customMarkers = []; // Stores custom markers added by user {keyIdentifier, marker, addressEntryId}
+        let startEndMarkers = []; // Stores start and end markers for a calculated route
+        let infoWindow; // Single InfoWindow for all markers
+        let routeStepsPanel; // The div containing route steps
+        let actualDepartureTimeInputElem;
+        let trafficLayer; // Google Maps Traffic Layer
+        let trafficVisible = false; // Tracks visibility of traffic layer
+        let loadingSpinnerElem;
+        let returnToStartCbElem;
+        let startAddressInputElem, finishingAddressInputElem;
+        let printRouteBtnTopElem;
+        let routeOptionsDropdownElem;
+        let startAutocomplete, finishAutocomplete; // Autocomplete for start/finish inputs
+        let draggedItem = null; // For drag and drop reordering of addresses/route steps
+        let isRouteCurrentlyCalculated = false; // Flag to track if a route is displayed
+
+
+        const initialMapCenter = { lat: -27.4677, lng: 153.0280 }; // Brisbane-ish default center
+        const initialMapZoom = 10;
+        const BRISBANE_GPO_LAT_LNG = new google.maps.LatLng(-27.4698, 153.0251); // Reference point for distance checks
+        const MAX_DISTANCE_METERS = 200 * 1000; // 200km max distance from GPO
+        const GOOGLE_API_KEY = 'AIzaSyCxJiuwW2ZkSuVUYaMGgkrRYzXzWLKVscs'; // Your Google Maps API Key
+
+        // Geocoding queue and state
+        let geocodingQueue = [];
+        let currentFailedAddressOriginalInput = null; // Stores the original input of a currently failed address for retry
+        let isProcessingQueue = false; // Flag to prevent multiple queue processing instances
+
+        // Notification elements
+        let addressProcessingNotificationElem; // For general notifications
+        let notificationMessagesListElem;
+        let notificationTimeout; // Timeout for hiding general notifications
+
+        let errorNotificationContainerElem; // For error messages
+        let errorNotificationTitleElem;
+        let errorNotificationMessagesListElem;
+
+        let importAddressesModalElem; // Modal for bulk address import
+
+        // Street View Elements
+        let streetViewDisplayContainerElem;
+        let streetViewDisplayImageElem;
+        let svOpenInMapsBtnBottomElem; // "Open in Maps" button on SV display
+        let streetViewHoverPreviewElem; // Small preview on hover
+        let streetViewHoverImageElem;
+        let currentStreetViewLocation = null; // To store lat,lng for SV
+        let currentStreetViewAddress = ""; // To store address for SV title/maps link
+        let currentStreetViewPanoData = { heading: 0, pitch: 0, panoId: null }; // Store pano details
+
+        // Left panel resizing elements
+        let leftPanel;
+        let resizeHandle;
+        let isResizing = false;
+        let initialPanelWidth;
+        let initialMouseX;
+        let initialStartMarker = null; // Marker for the initial/default start address
+        let routeSoundSynth, errorSoundSynth; // Tone.js synths for audio feedback
+        let hoverTimeout; // Timeout for Street View hover preview
+        let infoWindowCloseTimeout; // For managing InfoWindow closing behavior
+
+
+        // Helper function to clear InfoWindow close timeout
+        function handleInfoWindowMouseEnter() {
+            if (infoWindowCloseTimeout) {
+                clearTimeout(infoWindowCloseTimeout);
+            }
+        }
+
+        // Helper function to set InfoWindow close timeout
+        function handleInfoWindowMouseLeave() {
+            infoWindowCloseTimeout = setTimeout(() => {
+                if (infoWindow) infoWindow.close();
+            }, 300); // Adjust delay as needed
+        }
+
+        // Utility to set up InfoWindow content and listeners for hover/click interactions
+        function setupInfoWindowInteractions(marker, contentString, makeInteractive = false) {
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = contentString; // Parse the HTML string into a DOM element
+
+            infoWindow.setContent(contentDiv);
+            infoWindow.open(map, marker);
+
+            if (makeInteractive) {
+                // Add listeners to the InfoWindow's content div itself
+                google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+                    // contentDiv is the actual DOM node in the InfoWindow
+                    contentDiv.removeEventListener('mouseenter', handleInfoWindowMouseEnter); // Ensure no duplicates
+                    contentDiv.addEventListener('mouseenter', handleInfoWindowMouseEnter);
+                    contentDiv.removeEventListener('mouseleave', handleInfoWindowMouseLeave); // Ensure no duplicates
+                    contentDiv.addEventListener('mouseleave', handleInfoWindowMouseLeave);
+                });
+            }
+        }
+
+
+        function initMap() {
+            // Cache DOM elements
+            startAddressInputElem = document.getElementById('startAddress');
+            finishingAddressInputElem = document.getElementById('finishingAddress');
+            routeStepsPanel = document.getElementById('routeSteps');
+            actualDepartureTimeInputElem = document.getElementById('actualDepartureTimeInput');
+
+            addressProcessingNotificationElem = document.getElementById('addressProcessingNotification');
+            notificationMessagesListElem = document.getElementById('notificationMessagesList');
+
+            errorNotificationContainerElem = document.getElementById('errorNotificationContainer');
+            errorNotificationTitleElem = document.getElementById('errorNotificationTitle');
+            errorNotificationMessagesListElem = document.getElementById('errorNotificationMessagesList');
+
+            importAddressesModalElem = document.getElementById('importAddressesModal');
+
+            streetViewDisplayContainerElem = document.getElementById('streetViewDisplayContainer');
+            streetViewDisplayImageElem = document.getElementById('streetViewDisplayImage');
+            svOpenInMapsBtnBottomElem = document.getElementById('svOpenInMapsBtnBottom');
+            streetViewHoverPreviewElem = document.getElementById('streetViewHoverPreview');
+            streetViewHoverImageElem = streetViewHoverPreviewElem.querySelector('img');
+
+            loadingSpinnerElem = document.getElementById('loadingOverlay');
+            returnToStartCbElem = document.getElementById('returnToStartCb');
+            printRouteBtnTopElem = document.getElementById('printRouteBtnTop');
+            routeOptionsDropdownElem = document.getElementById('routeOptionsDropdown');
+
+
+            leftPanel = document.getElementById('leftFloatingPanel');
+            resizeHandle = document.getElementById('resizeHandle');
+
+            // Setup "Import Addresses" button
+            const openImportBtn = document.getElementById('openImportAddressesModalBtn');
+            if(openImportBtn) {
+                openImportBtn.addEventListener('click', openImportModal);
+            }
+
+            actualDepartureTimeInputElem.style.display = 'none'; // Hide time input initially
+            startAddressInputElem.value = "Signal Cl, Lytton QLD 4178"; // Set default start address
+            startingAddress = startAddressInputElem.value.trim();
+
+
+            // Initialize Google Maps
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: initialMapCenter,
+                zoom: initialMapZoom,
+                scrollwheel: true, // Allow scroll wheel zoom
+                clickableIcons: false // Disable clicking on Google's default POI icons
+            });
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                suppressMarkers: true, // We'll use custom markers
+                preserveViewport: true // Don't auto-zoom/pan map on route calculation
+            });
+            geocoder = new google.maps.Geocoder();
+            streetViewService = new google.maps.StreetViewService();
+            infoWindow = new google.maps.InfoWindow({ // Single InfoWindow instance
+                maxWidth: 320,
+                disableAutoPan: true, // Prevent map panning when InfoWindow opens
+            });
+            customMarkers = []; // Initialize custom markers array
+            updateJobCount(); // Set initial job count to 0
+
+            trafficLayer = new google.maps.TrafficLayer();
+
+            // Initialize Tone.js synths for sound feedback
+            routeSoundSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.2 },
+                volume: -10 // Quieter volume
+            }).toDestination();
+
+            errorSoundSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "square" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 },
+                volume: -12
+            }).toDestination();
+
+
+            // Event Listeners
+            actualDepartureTimeInputElem.addEventListener('change', handleTimeInputChange);
+            actualDepartureTimeInputElem.addEventListener('blur', handleTimeInputBlur);
+            map.addListener('click', (event) => {
+                if (infoWindow) infoWindow.close(); // Close InfoWindow on map click
+                handleMapClickToAddAddress(event);
+            });
+
+            if (resizeHandle && leftPanel) {
+                resizeHandle.addEventListener('mousedown', startResize);
+            }
+
+            if (startAddressInputElem) {
+                startAddressInputElem.addEventListener('blur', handleStartAddressChange);
+            }
+
+            returnToStartCbElem.addEventListener('change', handleReturnToStartChange);
+            handleReturnToStartChange(); // Initialize finish address input state
+
+            // Initialize Autocomplete for address inputs
+            const autocompleteOptions = {
+                componentRestrictions: { country: 'AU' }, // Restrict to Australia
+                fields: ['formatted_address', 'geometry', 'name'], // Request specific fields
+                types: ['address'] // Consider 'geocode' or '(regions)' for suburbs if 'address' is too restrictive
+            };
+            startAutocomplete = new google.maps.places.Autocomplete(startAddressInputElem, autocompleteOptions);
+
+            // For finishing address, allow more general geocoding if Autocomplete is too restrictive for suburbs
+            const finishAutocompleteOptions = {
+                componentRestrictions: { country: 'AU' },
+                fields: ['formatted_address', 'geometry', 'name'],
+                types: ['geocode'] // 'geocode' is more general than 'address'
+            };
+            finishAutocomplete = new google.maps.places.Autocomplete(finishingAddressInputElem, finishAutocompleteOptions);
+
+
+            startAutocomplete.addListener('place_changed', () => {
+                const place = startAutocomplete.getPlace();
+                if (place && place.formatted_address) {
+                    startAddressInputElem.value = place.formatted_address;
+                    handleStartAddressChange(); // Validate and update start address
+                }
+            });
+             finishAutocomplete.addListener('place_changed', () => {
+                const place = finishAutocomplete.getPlace();
+                 if (place && place.formatted_address) {
+                    finishingAddressInputElem.value = place.formatted_address;
+                    // Update global variable when autocomplete selects a place
+                    finishingAddressInputString = place.formatted_address;
+                }
+            });
+
+
+            // Event listener for Street View clicks on route steps
+            document.getElementById('routeStepsList').addEventListener('click', function(event) {
+                const target = event.target.closest('li.has-street-view'); // Click on LI or its children
+                if (target) {
+                    const locationStr = target.dataset.location;
+                    const addressStr = target.dataset.address;
+                    if (locationStr && addressStr) {
+                       openStreetViewDisplay(locationStr, addressStr);
+                    }
+                }
+            });
+
+            // Event listeners for Street View hover preview and marker animation
+            const routeList = document.getElementById('routeStepsList');
+            routeList.addEventListener('mouseover', handleRouteStepMouseOver);
+            routeList.addEventListener('mouseout', handleRouteStepMouseOut);
+
+
+            // Close Street View display when clicking outside of it
+            document.addEventListener('click', function(event) {
+                if (streetViewDisplayContainerElem.style.display === 'block') {
+                    if (!streetViewDisplayContainerElem.contains(event.target)) {
+                        // Also ensure the click wasn't on a route step that would re-open it
+                        if (!event.target.closest('li.has-street-view')) {
+                            closeStreetViewDisplay();
+                        }
+                    }
+                }
+            }, true); // Use capture phase to catch clicks early
+
+            // Close Route Options dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                if (routeOptionsDropdownElem.style.display === 'block') {
+                    const routeOptionsBtn = document.getElementById('routeOptionsBtnMain');
+                    if (!routeOptionsBtn.contains(event.target) && !routeOptionsDropdownElem.contains(event.target)) {
+                        routeOptionsDropdownElem.style.display = 'none';
+                    }
+                }
+            });
+
+            // Drag and Drop for Address List (Input Panel)
+            const addressListEl = document.getElementById('addressList');
+            addressListEl.addEventListener('dragstart', (e) => {
+                if (e.target.tagName === 'LI' && e.target.parentElement.id === 'addressList') {
+                    draggedItem = e.target;
+                    setTimeout(() => { if(draggedItem) draggedItem.style.opacity = '0.5'; }, 0);
+                }
+            });
+             // Shared dragend for both lists
+            const commonDragEndHandler = (e) => {
+                if (draggedItem) {
+                    draggedItem.style.opacity = '';
+                }
+                draggedItem = null;
+            };
+            addressListEl.addEventListener('dragend', commonDragEndHandler);
+
+
+            addressListEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (!draggedItem || !draggedItem.parentElement || draggedItem.parentElement.id !== 'addressList') return;
+                const afterElement = getDragAfterElement(addressListEl, e.clientY);
+                if (afterElement == null) {
+                    addressListEl.appendChild(draggedItem);
+                } else {
+                    addressListEl.insertBefore(draggedItem, afterElement);
+                }
+            });
+            addressListEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!draggedItem || !draggedItem.parentElement || draggedItem.parentElement.id !== 'addressList') return;
+
+                // Get the new order of address IDs from the DOM
+                const newOrderedAddressIds = Array.from(addressListEl.children)
+                    .map(li => li.dataset.addressId) // Assumes li has data-address-id
+                    .filter(id => id); // Filter out any undefined IDs
+
+                // Create a map for quick lookup of address objects by ID
+                const addressMap = new Map(addresses.map(addr => [addr.id, addr]));
+                // Reconstruct the `addresses` array based on the new DOM order
+                const newOrder = newOrderedAddressIds.map(id => addressMap.get(id)).filter(Boolean); // Filter out any not found
+
+                // Validate if the reordering was successful
+                if (newOrder.length === addresses.length && newOrder.length === newOrderedAddressIds.length) {
+                    addresses = newOrder; // Update the global `addresses` array
+                    // The DOM is already in the new order, so no need to call updateAddressList() to re-render this specific list.
+                    // `addresses` array now matches the DOM order of `addressListEl`.
+
+                    if (isRouteCurrentlyCalculated) {
+                        // If a route is displayed, it needs recalculation with the fixed new order
+                        showAddressProcessingNotification(["Input address order changed. Recalculating route with new fixed order..."], "Recalculating", "info");
+                        calculateRoute(true); // Recalculate, preserving the new order
+                    }
+                    // If no route is displayed, `addresses` is updated, next manual "Calculate" will use this order.
+                } else {
+                    console.error("Error reordering addresses in input list. Re-rendering list from current data.");
+                    updateAddressList(); // Re-render to ensure consistency if mapping failed
+                }
+            });
+
+
+            // Drag and Drop for Route Steps List (Output Panel)
+            const routeStepsListEl = document.getElementById('routeStepsList');
+            routeStepsListEl.addEventListener('dragstart', (e) => {
+                if (e.target.tagName === 'LI' && e.target.parentElement.id === 'routeStepsList') {
+                    draggedItem = e.target;
+                    setTimeout(() => { if(draggedItem) draggedItem.style.opacity = '0.5'; }, 0);
+                }
+            });
+            routeStepsListEl.addEventListener('dragend', commonDragEndHandler); // Use shared handler
+
+
+            routeStepsListEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                // Ensure draggedItem is from the routeStepsList
+                if (!draggedItem || !draggedItem.parentElement || draggedItem.parentElement.id !== 'routeStepsList') return;
+                const afterElement = getDragAfterElement(routeStepsListEl, e.clientY);
+                if (afterElement == null) {
+                    routeStepsListEl.appendChild(draggedItem);
+                } else {
+                    routeStepsListEl.insertBefore(draggedItem, afterElement);
+                }
+            });
+
+            routeStepsListEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!draggedItem || !draggedItem.parentElement || draggedItem.parentElement.id !== 'routeStepsList') return;
+
+                // Get the new order of address IDs from the DOM of the route steps list
+                const newOrderedAddressIds = Array.from(routeStepsListEl.children)
+                    .map(li => li.dataset.addressId) // Assumes li has data-address-id (set during displayRouteInfo)
+                    .filter(id => id); // Filter out any undefined IDs (e.g., if start/finish are not part of `addresses`)
+
+                // Create a map for quick lookup of address objects by ID from the global `addresses` array
+                const addressMap = new Map(addresses.map(addr => [addr.id, addr]));
+                // Reconstruct the `addresses` array based on the new DOM order from routeStepsList
+                const newOrderedWaypoints = newOrderedAddressIds.map(id => addressMap.get(id)).filter(Boolean);
+
+                // Validate if the reordering was successful
+                if (newOrderedWaypoints.length === newOrderedAddressIds.length) { // Check if all IDs were found
+                    addresses = newOrderedWaypoints; // Update the global `addresses` array to this new order
+
+                    // The input panel's address list (`addressListEl`) might now be out of sync.
+                    // Re-render it to reflect the new order from the route panel.
+                    updateAddressList(); // This ensures the input list matches the new `addresses` order.
+
+                    // Recalculate the route with the new fixed order.
+                    showAddressProcessingNotification(
+                        ["Route order changed. Recalculating with new fixed order..."],
+                        "Recalculating",
+                        "info"
+                    );
+                    calculateRoute(true); // `true` preserves the new `addresses` order
+                } else {
+                    console.error("Error reordering route steps: ID mapping failed. Reverting visual list.");
+                    // If mapping failed, restore the previous visual order in the route steps panel
+                    if (directionsRenderer.getDirections() && directionsRenderer.getDirections().routes.length > 0) {
+                        displayRouteInfo(directionsRenderer.getDirections().routes[0]); // Restore previous visual
+                    }
+                    showAddressProcessingNotification(["Error reordering route. Please try again."], "Reorder Error", "error");
+                }
+            });
+
+
+            placeInitialStartMarker(); // Place marker for default start address
+            loadRoute(); // Attempt to load a previously saved route
+        }
+
+        // Helper for drag-and-drop: determines where to insert the dragged item
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('li:not(.dragging)')]; // .dragging class can be added in dragstart if needed
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function showLoading(message = "Processing...") {
+            if (loadingSpinnerElem) {
+                // loadingSpinnerElem.querySelector('.loading-message').textContent = message; // If you add a message element
+                loadingSpinnerElem.style.display = 'flex';
+            }
+        }
+
+        function hideLoading() {
+            if (loadingSpinnerElem) {
+                loadingSpinnerElem.style.display = 'none';
+            }
+        }
+
+        // Handles the "Return to Start" checkbox change
+        function handleReturnToStartChange() {
+            if (returnToStartCbElem.checked) {
+                finishingAddressInputElem.value = '';
+                finishingAddressInputElem.disabled = true;
+                finishingAddressInputElem.placeholder = 'Returning to start address';
+                finishingAddressInputElem.style.backgroundColor = '#e9ecef'; // Visual cue
+                finishingAddressInputString = ""; // Clear global var
+            } else {
+                finishingAddressInputElem.disabled = false;
+                finishingAddressInputElem.placeholder = 'Enter finishing address';
+                finishingAddressInputElem.style.backgroundColor = ''; // Reset visual cue
+                // finishingAddressInputString will be set by input or autocomplete
+            }
+        }
+
+        // Places the initial marker for the starting address
+        function placeInitialStartMarker() {
+            const startAddressValue = startAddressInputElem.value.trim();
+            if (startAddressValue) {
+                geocodeAndPlaceStartMarker(startAddressValue);
+            }
+        }
+
+        // Handles changes to the starting address input field
+        function handleStartAddressChange() {
+            const newStartAddress = startAddressInputElem.value.trim(); // Get and trim the new value
+            if (newStartAddress && newStartAddress !== startingAddress) { // If it's new and different
+                startingAddress = newStartAddress; // Update the global variable
+                geocodeAndPlaceStartMarker(newStartAddress);
+            } else if (!newStartAddress && initialStartMarker) { // If cleared and marker exists
+                initialStartMarker.setMap(null);
+                initialStartMarker = null;
+                startingAddress = "";
+            }
+        }
+
+        // Geocodes and places the marker for the starting address
+        function geocodeAndPlaceStartMarker(addressString) {
+            geocoder.geocode({ 'address': addressString, 'region': 'AU' }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    if (initialStartMarker) {
+                        initialStartMarker.setMap(null); // Remove old marker if exists
+                    }
+                    const location = results[0].geometry.location;
+                    // Custom SVG for start marker
+                    const startSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38"><path d="M14 0C6.268 0 0 6.268 0 14c0 7.963 10.594 21.985 12.344 23.656a2.5 2.5 0 003.312 0C17.406 35.985 28 21.963 28 14 28 6.268 21.732 0 14 0z" fill="black"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold" fill="white">S</text></svg>`;
+                    initialStartMarker = new google.maps.Marker({
+                        position: location,
+                        map: map,
+                        icon: {
+                            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(startSvg),
+                            scaledSize: new google.maps.Size(28, 38),
+                            anchor: new google.maps.Point(14, 38)
+                        },
+                        title: "Start: " + results[0].formatted_address,
+                        zIndex: google.maps.Marker.MAX_ZINDEX + 1 // Ensure it's on top
+                    });
+
+                    // InfoWindow for start marker (hover)
+                    initialStartMarker.addListener('mouseover', () => {
+                        if (infoWindowCloseTimeout) clearTimeout(infoWindowCloseTimeout);
+                        const content = formatInfoWindowContent("Start", results[0].formatted_address);
+                        setupInfoWindowInteractions(initialStartMarker, content, false); // Not interactive
+                    });
+                    initialStartMarker.addListener('mouseout', () => {
+                        infoWindowCloseTimeout = setTimeout(() => {
+                            if (infoWindow) infoWindow.close();
+                        }, 200);
+                    });
+
+
+                     // Center map on start marker if no other markers/route exist
+                     if (customMarkers.length === 0 && (!directionsRenderer.getDirections() || !directionsRenderer.getDirections().routes.length)) {
+                        map.setCenter(location);
+                        map.setZoom(12); // Reasonable zoom level
+                    }
+
+                } else {
+                    console.warn("Could not geocode initial start address:", addressString, status);
+                    if (initialStartMarker) {
+                        initialStartMarker.setMap(null);
+                        initialStartMarker = null;
+                    }
+                }
+            });
+        }
+
+
+        // --- Left Panel Resizing Logic ---
+        function startResize(e) {
+            isResizing = true;
+            initialPanelWidth = leftPanel.offsetWidth;
+            initialMouseX = e.clientX;
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', stopResize);
+            document.body.style.cursor = 'ew-resize'; // Change cursor during resize
+        }
+
+        function doResize(e) {
+            if (!isResizing) return;
+            const deltaX = e.clientX - initialMouseX;
+            let newWidth = initialPanelWidth + deltaX;
+
+            // Constrain width
+            const minWidth = 250; // Minimum panel width
+            const maxWidth = window.innerWidth * 0.7; // Max 70% of window width
+            newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+
+            leftPanel.style.width = newWidth + 'px';
+        }
+
+        function stopResize() {
+            if (!isResizing) return;
+            isResizing = false;
+            document.removeEventListener('mousemove', doResize);
+            document.removeEventListener('mouseup', stopResize);
+            document.body.style.cursor = 'default'; // Reset cursor
+            adjustMapViewportAfterResize(); // Adjust map if route/markers are present
+        }
+
+        // Adjusts map viewport after panel resize, considering panel width
+        function adjustMapViewportAfterResize() {
+            const currentDirections = directionsRenderer.getDirections();
+            if (currentDirections && currentDirections.routes && currentDirections.routes.length > 0) {
+                const routeBounds = currentDirections.routes[0].bounds;
+                if (routeBounds && map) {
+                    const panelWidth = leftPanel.offsetWidth;
+                    // Fit bounds with padding, accounting for the left panel
+                    map.fitBounds(routeBounds, { left: panelWidth + 30, top: 60, right: 30, bottom: 30 });
+                }
+            } else if (customMarkers.length > 0) {
+                fitMapToMarkers(); // If no route, fit to custom markers
+            }
+        }
+
+        // Formats content for InfoWindows
+        function formatInfoWindowContent(mainTitle, fullAddress, travelTime = null) {
+            let content = `<div class="custom-infowindow-content"><strong>${escapeHtml(mainTitle)}</strong>`; // escapeHtml for mainTitle
+            let cleanedFullAddress = fullAddress.replace(/, Australia$/i, "").trim(); // Remove ", Australia"
+            let mainTitleTextOnly = mainTitle.replace(/^\d+\.\s*/, '').trim(); // Remove numbering like "1. "
+
+            // Attempt to show only the part of fullAddress not already in mainTitle
+            let additionalDetails = "";
+            if (cleanedFullAddress.toLowerCase().startsWith(mainTitleTextOnly.toLowerCase())) {
+                additionalDetails = cleanedFullAddress.substring(mainTitleTextOnly.length).trim();
+                if (additionalDetails.startsWith(',')) { // Remove leading comma if present
+                    additionalDetails = additionalDetails.substring(1).trim();
+                }
+            } else {
+                additionalDetails = cleanedFullAddress; // Fallback to showing cleaned full address
+            }
+
+            // Further refinement if mainTitle is just the first part of additionalDetails
+            if (additionalDetails && additionalDetails.toLowerCase() !== mainTitleTextOnly.toLowerCase()) {
+                const mainTitleParts = mainTitleTextOnly.split(',');
+                const additionalDetailsParts = additionalDetails.split(',');
+                // If main title is "Street Name" and additional is "Street Name, Suburb", show only "Suburb"
+                if (mainTitleParts.length === 1 && additionalDetailsParts.length > 1 && mainTitleParts[0].trim().toLowerCase() === additionalDetailsParts[0].trim().toLowerCase()) {
+                    additionalDetails = additionalDetailsParts.slice(1).join(',').trim();
+                }
+                if (additionalDetails) { // Only add if there's something to add
+                    content += `<br><small>${escapeHtml(additionalDetails)}</small>`; // escapeHtml for additionalDetails
+                }
+            }
+
+            if (travelTime) {
+                content += `<br><small>Travel: ${escapeHtml(travelTime)}</small>`; // escapeHtml for travelTime
+            }
+            content += `</div>`;
+            return content;
+        }
+
+
+        // Handles adding an address by clicking on the map
+        function handleMapClickToAddAddress(event) { // Renamed for clarity
+            const clickedLatLng = event.latLng;
+            geocoder.geocode({ 'location': clickedLatLng, 'region': 'AU' }, (results, status) => {
+                if (status === 'OK') {
+                    if (results[0]) {
+                        const googleFormattedAddress = results[0].formatted_address;
+                        // Ensure the address is in Australia before adding
+                        if (googleFormattedAddress.toLowerCase().includes("australia")) {
+                            const processedAddr = preprocessAddress(googleFormattedAddress);
+                            geocodingQueue.push({ originalInput: googleFormattedAddress, addressToGeocode: processedAddr, isLikelySuburbOnlyMapped: false });
+                            showAddressProcessingNotification([`Added "${googleFormattedAddress}" from map click. Processing...`], "Address Added", 'info');
+                            if (!isProcessingQueue) processGeocodingQueue();
+                            if (isRouteCurrentlyCalculated) { // If a route is already shown
+                                changeToRecalculateButton(); // Change button text
+                                showAddressProcessingNotification(["New address added from map. Please re-calculate route."], "Route Update Needed", "info");
+
+                            }
+                        } else {
+                            showAddressProcessingNotification([`The clicked location resolved to an address outside Australia: "${googleFormattedAddress}".`], "Location Error", 'warning');
+                        }
+                    } else {
+                        showAddressProcessingNotification(['Could not find a specific address for the clicked location.'], "Geocoding Error", 'warning');
+                    }
+                } else {
+                    showAddressProcessingNotification([`Could not get address for clicked location. Error: ${status}`], "Geocoding Error", 'error');
+                }
+            });
+        }
+
+        // Opens the import addresses modal
+        function openImportModal() {
+            if (importAddressesModalElem) importAddressesModalElem.style.display = 'flex';
+        }
+
+        // Closes the import addresses modal
+        function closeImportModal() {
+            if (importAddressesModalElem) importAddressesModalElem.style.display = 'none';
+        }
+
+        // Basic preprocessing for addresses (e.g., removing unit numbers for better geocoding)
+        function preprocessAddress(rawAddress) {
+            // Regex to remove common unit/shop prefixes like "Unit 1/", "U1/", "Shop 1/", "1/"
+            const unitPattern = /^(?:(?:Unit|U|Shop)\s*\d+[A-Za-z]?\s*[\/\s,]|(?:\d+[A-Za-z]?\s*\/\s*))\s*(?=\d+)/i;
+            let processed = rawAddress.replace(unitPattern, '').trim();
+            return processed;
+        }
+
+
+        // Adds addresses from the import modal
+        function addAddressesFromModal() {
+            const addressInput = document.getElementById('address').value.trim();
+            if (addressInput === "") { // Check if textarea is empty
+                showAddressProcessingNotification(['Please enter addresses in the text area.'], "Input Required", 'warning');
+                return;
+            }
+            const newAddressesRaw = addressInput.split('\n').map(addr => addr.trim()).filter(addr => addr !== '');
+            newAddressesRaw.forEach(rawAddr => { // Add each to geocoding queue
+                const processedAddr = preprocessAddress(rawAddr); // Preprocess before geocoding
+                geocodingQueue.push({ originalInput: rawAddr, addressToGeocode: processedAddr, isLikelySuburbOnlyMapped: false });
+            });
+            document.getElementById('address').value = ''; // Clear textarea
+            if (!isProcessingQueue && geocodingQueue.length > 0) processGeocodingQueue();
+            closeImportModal();
+            if (isRouteCurrentlyCalculated && newAddressesRaw.length > 0) {
+                 changeToRecalculateButton();
+                 showAddressProcessingNotification(["New addresses imported. Please re-calculate route."], "Route Update Needed", "info");
+            }
+        }
+
+        // Geocodes an address with a fallback for simple suburb names to add ", QLD"
+        function geocodePromise(address) {
+            return new Promise((resolve, reject) => {
+                geocoder.geocode({ 'address': address, 'region': 'AU' }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        const firstAttemptResults = results;
+                        const firstAttemptFormattedAddress = results[0].formatted_address;
+                        const isAustralian = firstAttemptFormattedAddress.toLowerCase().includes("australia");
+                        // Heuristic: if input has no numbers, no commas, and few words, it might be just a suburb
+                        const isLikelySimpleSuburb = !address.match(/\d/) && !address.includes(',') && address.split(' ').length < 3;
+
+                        // If it's a simple suburb, Australian, but not explicitly QLD, try forcing QLD
+                        if (isLikelySimpleSuburb && isAustralian && !firstAttemptFormattedAddress.toLowerCase().includes(", qld") && !firstAttemptFormattedAddress.toLowerCase().includes("queensland")) {
+                            const qldForcedAddress = address.split(',')[0].trim() + ", QLD, Australia";
+                            console.log(`geocodePromise: Simple AU suburb, trying with QLD: ${qldForcedAddress}`);
+                            geocoder.geocode({ 'address': qldForcedAddress, 'region': 'AU' }, (qldResults, qldStatus) => {
+                                if (qldStatus === 'OK' && qldResults[0] && qldResults[0].formatted_address.toLowerCase().includes("australia")) {
+                                    resolve(qldResults); // Use QLD result if successful
+                                } else {
+                                    resolve(firstAttemptResults); // Fallback to original Australian result
+                                }
+                            });
+                        } else if (isAustralian) {
+                            resolve(firstAttemptResults); // Already good
+                        } else if (isLikelySimpleSuburb) { // Not Australian, but simple suburb - try forcing QLD
+                            const qldForcedAddress = address.split(',')[0].trim() + ", QLD, Australia";
+                             console.log(`geocodePromise: Simple non-AU suburb, trying with QLD: ${qldForcedAddress}`);
+                            geocoder.geocode({ 'address': qldForcedAddress, 'region': 'AU' }, (qldResults, qldStatus) => {
+                                if (qldStatus === 'OK' && qldResults[0] && qldResults[0].formatted_address.toLowerCase().includes("australia")) {
+                                    resolve(qldResults);
+                                } else {
+                                    reject({ status: qldStatus || 'RETRY_FAILED_NON_AU', address: qldForcedAddress, originalQuery: address });
+                                }
+                            });
+                        } else {
+                            resolve(firstAttemptResults); // Non-Australian, complex, use as is (will be filtered later)
+                        }
+                    } else if (status === 'ZERO_RESULTS') {
+                        // If ZERO_RESULTS and input is simple (no QLD, no postcode, no comma), try adding QLD
+                        const isSimpleForZeroResultsFallback = !address.toLowerCase().includes("qld") && !address.match(/\b\d{4}\b/) && !address.includes(',');
+                        if (isSimpleForZeroResultsFallback) {
+                            const qldFallbackAddress = address.split(',')[0].trim() + ", QLD, Australia";
+                            console.log(`geocodePromise: ZERO_RESULTS, trying with QLD: ${qldFallbackAddress}`);
+                            geocoder.geocode({ 'address': qldFallbackAddress, 'region': 'AU' }, (qldResults, qldStatus) => {
+                                if (qldStatus === 'OK' && qldResults[0] && qldResults[0].formatted_address.toLowerCase().includes("australia")) {
+                                    resolve(qldResults);
+                                } else {
+                                    reject({ status: qldStatus || 'ZERO_RESULTS_RETRY_FAILED', address: qldFallbackAddress, originalQuery: address });
+                                }
+                            });
+                        } else {
+                            reject({ status: status, address: address, originalQuery: address }); // No fallback for complex zero results
+                        }
+                    } else {
+                        reject({ status: status, address: address, originalQuery: address }); // Other errors
+                    }
+                });
+            });
+        }
+
+        // Escapes HTML to prevent XSS
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return '';
+            const div = document.createElement('div');
+            div.innerText = unsafe; // Using innerText for safe assignment
+            return div.innerHTML;   // Then reading innerHTML to get escaped version
+        }
+
+        // Shows notifications (info, warning, error)
+        async function showAddressProcessingNotification(messages, title = "Notification", type = 'info', failedOriginalInput = null) {
+            await Tone.start(); // Ensure Tone.js audio context is started
+            if (type === 'error') {
+                if (!errorNotificationContainerElem || !errorNotificationMessagesListElem || !errorNotificationTitleElem) return;
+
+                errorNotificationTitleElem.textContent = title; // Set title
+
+                // Add each message as a list item
+                messages.forEach(msg => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = msg;
+                    if (failedOriginalInput) { // If it's an editable error
+                        listItem.dataset.failedAddress = failedOriginalInput;
+                        listItem.title = "Click to edit and retry this address";
+                        listItem.classList.add("editable-error");
+                        listItem.onclick = (event) => makeErrorEditable(event.currentTarget, failedOriginalInput);
+                    }
+                    errorNotificationMessagesListElem.appendChild(listItem);
+                });
+
+                errorNotificationContainerElem.style.display = 'flex'; // Show container
+                setTimeout(() => { // Add 'show' class for transition
+                    errorNotificationContainerElem.classList.add('show');
+                }, 10);
+
+                if (errorSoundSynth) { // Play error sound
+                    const now = Tone.now();
+                    errorSoundSynth.triggerAttackRelease("A3", "16n", now);
+                    errorSoundSynth.triggerAttackRelease("F#3", "16n", now + 0.1);
+                }
+
+            } else { // For 'info' or 'warning' types
+                if (!addressProcessingNotificationElem || !notificationMessagesListElem) return;
+
+                if (notificationTimeout) clearTimeout(notificationTimeout); // Clear previous timeout
+                addressProcessingNotificationElem.style.display = 'none';
+                addressProcessingNotificationElem.classList.remove('show');
+
+                document.getElementById('notificationTitle').textContent = title; // Set title
+                notificationMessagesListElem.innerHTML = ''; // Clear previous messages
+                messages.forEach(msg => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = msg;
+                    notificationMessagesListElem.appendChild(listItem);
+                });
+
+                // Style based on type
+                addressProcessingNotificationElem.style.backgroundColor = (type === 'info' ? 'var(--md-info-color)' : 'var(--md-warning-color)');
+                addressProcessingNotificationElem.style.color = (type === 'info' ? 'white' : 'var(--md-warning-text-color)');
+                addressProcessingNotificationElem.style.borderColor = (type === 'info' ? '#138496' : '#ffeeba');
+
+                addressProcessingNotificationElem.style.display = 'block'; // Show container
+                setTimeout(() => {
+                    addressProcessingNotificationElem.classList.add('show'); // Add 'show' class for transition
+                }, 10);
+
+                // Auto-hide after a delay
+                notificationTimeout = setTimeout(() => {
+                    addressProcessingNotificationElem.classList.remove('show');
+                    setTimeout(() => { // Ensure it's fully hidden before setting display:none
+                        if (!addressProcessingNotificationElem.classList.contains('show')) {
+                            addressProcessingNotificationElem.style.display = 'none';
+                        }
+                    }, 500); // Match transition duration
+                }, 3500);
+            }
+        }
+
+        // Makes a failed address in the error notification editable
+        function makeErrorEditable(listItem, failedAddress) {
+            const originalContent = listItem.textContent; // Save original text
+            listItem.onclick = null; // Remove click listener
+            listItem.classList.remove('editable-error');
+            listItem.innerHTML = ''; // Clear current content
+
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = failedAddress;
+            input.className = 'inline-edit-failed-address-input';
+            input.onclick = (e) => e.stopPropagation(); // Prevent click from bubbling up
+
+            // Create Retry button
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = 'Retry';
+            retryBtn.className = 'inline-edit-failed-address-btn inline-edit-retry-btn';
+            retryBtn.onclick = (e) => {
+                e.stopPropagation();
+                const correctedAddress = input.value.trim();
+                if (correctedAddress) {
+                    const processedAddr = preprocessAddress(correctedAddress); // Preprocess again
+                    geocodingQueue.push({ originalInput: correctedAddress, addressToGeocode: processedAddr, isLikelySuburbOnlyMapped: false });
+                    if (!isProcessingQueue) processGeocodingQueue();
+                    showAddressProcessingNotification([`Retrying address: "${correctedAddress}"...`], "Retrying Address", 'info');
+                    listItem.remove(); // Remove the item from error list
+                     // Hide error container if no more errors
+                     if (errorNotificationMessagesListElem.children.length === 0) {
+                        errorNotificationContainerElem.style.display='none';
+                        errorNotificationContainerElem.classList.remove('show');
+                    }
+                }
+            };
+
+            // Create Cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.className = 'inline-edit-failed-address-btn inline-edit-cancel-btn';
+            cancelBtn.onclick = (e) => {
+                e.stopPropagation();
+                listItem.innerHTML = originalContent; // Restore original content
+                listItem.dataset.failedAddress = failedAddress; // Re-add data attribute
+                listItem.classList.add('editable-error');
+                listItem.onclick = (event) => makeErrorEditable(event.currentTarget, failedAddress); // Re-attach listener
+            };
+
+            listItem.appendChild(input);
+            listItem.appendChild(retryBtn);
+            listItem.appendChild(cancelBtn);
+            input.focus(); // Focus on the input field
+        }
+
+
+        // Processes the geocoding queue one by one
+        async function processGeocodingQueue() {
+            if (geocodingQueue.length === 0) {
+                isProcessingQueue = false; // No more items
+                hideLoading(); // Hide spinner if it was shown
+                // Fit map to markers if there are markers and no route
+                const directions = directionsRenderer.getDirections();
+                if (customMarkers.length > 0 && (!directions || !directions.routes || directions.routes.length === 0)) {
+                    fitMapToMarkers();
+                }
+                return;
+            }
+            isProcessingQueue = true;
+            const itemToGeocode = geocodingQueue.shift(); // Get next item
+            currentFailedAddressOriginalInput = itemToGeocode.originalInput; // Store for potential error message
+            try {
+                const results = await geocodePromise(itemToGeocode.addressToGeocode); // Attempt geocoding
+                const location = results[0].geometry.location;
+                const googleFormattedAddress = results[0].formatted_address;
+
+                // Check distance from Brisbane GPO
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(BRISBANE_GPO_LAT_LNG, location);
+                if (distance > MAX_DISTANCE_METERS) {
+                    showAddressProcessingNotification([`"${itemToGeocode.originalInput}" is >200km from Brisbane GPO.`], "Address Too Far", 'error', itemToGeocode.originalInput);
+                    processGeocodingQueue(); // Continue with next item
+                    return;
+                }
+                // Add successfully geocoded address
+                addSuccessfullyGeocodedAddress(itemToGeocode.originalInput, googleFormattedAddress, itemToGeocode.isLikelySuburbOnlyMapped, location, googleFormattedAddress, results[0]);
+
+                currentFailedAddressOriginalInput = null; // Clear current failed input
+                processGeocodingQueue(); // Process next item
+            } catch (errorInfo) { // Handle geocoding errors
+                let userFriendlyMessage;
+                let errorTitle = "Address Processing Error";
+                const originalQueryForError = errorInfo.originalQuery || currentFailedAddressOriginalInput;
+
+                if (errorInfo.status === 'ZERO_RESULTS' || errorInfo.status === 'ZERO_RESULTS_RETRY_FAILED') {
+                    userFriendlyMessage = `The address "${originalQueryForError}" could not be found. Please check the spelling or try being more specific.`;
+                    errorTitle = "Address Not Found";
+                } else {
+                    userFriendlyMessage = `Could not process "${originalQueryForError}" (tried "${errorInfo.address || itemToGeocode.addressToGeocode}"). Error: ${errorInfo.status || 'Unknown'}.`;
+                }
+                showAddressProcessingNotification([userFriendlyMessage], errorTitle, 'error', originalQueryForError); // Show error, allow retry
+                currentFailedAddressOriginalInput = null; // Clear current failed input
+                processGeocodingQueue(); // Process next item
+            }
+        }
+
+        // Fits the map to show all custom markers and the initial start marker
+        function fitMapToMarkers() {
+            if (!map || customMarkers.length === 0) return; // Only fit if there are custom markers
+            const bounds = new google.maps.LatLngBounds();
+            customMarkers.forEach(markerObj => {
+                bounds.extend(markerObj.marker.getPosition());
+            });
+            // Also include initial start marker if it's visible and not part of customMarkers (e.g. before any addresses added)
+            if (initialStartMarker && initialStartMarker.getMap() && !customMarkers.some(cm => cm.marker === initialStartMarker)) {
+                bounds.extend(initialStartMarker.getPosition());
+            }
+
+            if (!bounds.isEmpty()) {
+                const panelWidth = leftPanel.offsetWidth; // Account for left panel
+                map.fitBounds(bounds, { left: panelWidth + 30, top: 60, right: 30, bottom: 30 });
+            }
+        }
+
+        // Adds a successfully geocoded address to the list and map
+        function addSuccessfullyGeocodedAddress(originalInput, processedInputByGoogle, isLikelySuburbOnlyMapped, location, googleFormattedAddress, geocodeResult) {
+            // Ensure address is in Australia
+            if (!googleFormattedAddress || !googleFormattedAddress.toLowerCase().includes("australia")) {
+                showAddressProcessingNotification([`"${originalInput}" (${googleFormattedAddress}) excluded (Non-AU).`], "Address Excluded", 'info');
+                updateAddressList(); updateJobCount(); return; // Don't add non-AU addresses
+            }
+
+            const newAddressEntry = { // Create new address object
+                originalInput,
+                processedInput: processedInputByGoogle,
+                isLikelySuburbOnlyMapped,
+                location,
+                googleFormattedAddress,
+                geocodeResult: geocodeResult, // Store full geocode result
+                id: (Date.now() + Math.random()).toString() // Ensure ID is a string
+            };
+            addresses.push(newAddressEntry); // Add to global list
+            // Notification message
+            const msg = originalInput.toLowerCase() !== googleFormattedAddress.toLowerCase() ? `Added "${originalInput}" (as "${googleFormattedAddress}").` : `Added "${googleFormattedAddress}".`;
+            showAddressProcessingNotification([msg], "Address Added", 'info');
+
+            // Add marker to map if not already present for this exact geocoded address
+            const existingMarker = customMarkers.find(m => m.keyIdentifier.toLowerCase() === googleFormattedAddress.toLowerCase());
+            if (!existingMarker) {
+                const marker = new google.maps.Marker({
+                    position: location,
+                    map: map,
+                    title: originalInput, // Use original input for title
+                    draggable: true // Allow dragging
+                });
+                marker.appData = { // Store data with marker for later use
+                    originalKey: googleFormattedAddress, // The key used to identify this marker (Google's formatted address)
+                    originalLatLng: location,
+                    addressEntryId: newAddressEntry.id // Link to the entry in `addresses` array
+                };
+                marker.addListener('dragend', (event) => handleMarkerDragEnd(event, marker));
+                // Use the new setup for click to ensure sticky InfoWindow
+                marker.addListener('click', () => handleCustomMarkerClick(newAddressEntry.id, marker)); // Click opens interactive InfoWindow
+                customMarkers.push({ keyIdentifier: googleFormattedAddress, marker: marker, addressEntryId: newAddressEntry.id }); // Add to custom markers list
+            }
+            updateAddressList(); // Refresh displayed list of addresses
+            updateJobCount();
+        }
+
+        // Handles click on a custom marker to show an interactive InfoWindow
+        function handleCustomMarkerClick(addressId, marker) {
+            const addressEntry = addresses.find(addr => addr.id === addressId); // Find the address by its unique ID
+            if (!addressEntry) return;
+
+            if (infoWindowCloseTimeout) clearTimeout(infoWindowCloseTimeout); // Clear any pending close
+
+            // InfoWindow content with action buttons
+            const content = `
+                <div class="custom-infowindow-content">
+                    <strong>${escapeHtml(addressEntry.originalInput)}</strong>
+                    <div class="marker-actions">
+                        <span class="marker-action-icon" onclick="setAsStartFromMarker('${addressId}'); return false;" title="Set as Start"><i class="fas fa-play-circle"></i></span>
+                        <span class="marker-action-icon" onclick="setAsFinishFromMarker('${addressId}'); return false;" title="Set as Finish"><i class="fas fa-stop-circle"></i></span>
+                        <span class="marker-action-icon delete" onclick="deleteAddressFromMarker('${addressId}'); return false;" title="Delete"><i class="fas fa-trash-alt"></i></span>
+                    </div>
+                </div>`;
+            setupInfoWindowInteractions(marker, content, true); // True because it has action buttons
+        }
+
+        // Sets an address from a marker as the new starting address
+        function setAsStartFromMarker(addressId) { // Called from InfoWindow
+            const addressEntry = addresses.find(addr => addr.id === addressId);
+            if (addressEntry) {
+                startAddressInputElem.value = addressEntry.originalInput; // Update input field
+                handleStartAddressChange(); // Process the change
+                clearCalculatedRouteDisplay();
+                changeToCalculateButton(); // Reset calculate button
+                if (infoWindow) infoWindow.close();
+            }
+        }
+
+        // Sets an address from a marker as the new finishing address
+        function setAsFinishFromMarker(addressId) { // Called from InfoWindow
+            const addressEntry = addresses.find(addr => addr.id === addressId);
+            if (addressEntry) {
+                finishingAddressInputElem.value = addressEntry.originalInput; // Update input field
+                finishingAddressInputString = addressEntry.originalInput; // Update global var
+                returnToStartCbElem.checked = false; // Uncheck "Return to Start"
+                handleReturnToStartChange(); // Process the change (will also call finishingAddressInputElem.disabled = false)
+                clearCalculatedRouteDisplay();
+                changeToCalculateButton(); // Reset calculate button
+                if (infoWindow) infoWindow.close();
+            }
+        }
+
+        // Deletes an address from a marker's InfoWindow
+        function deleteAddressFromMarker(addressId) { // Called from InfoWindow
+            const addressIndex = addresses.findIndex(addr => addr.id === addressId); // Find by unique ID
+            if (addressIndex > -1) {
+                removeAddress(addressIndex); // Call the main remove function
+                clearCalculatedRouteDisplay();
+                changeToCalculateButton(); // Reset calculate button
+                if (infoWindow) infoWindow.close();
+            }
+        }
+
+        // Clears the currently displayed route information
+        function clearCalculatedRouteDisplay() {
+            if (directionsRenderer) directionsRenderer.setDirections({routes: []}); // Clear route from map
+            if (routeStepsPanel) routeStepsPanel.classList.remove('visible'); // Hide route steps panel
+            // Clear content of display elements
+            ['routeStepsList', 'startingAddressDisplay', 'finishingAddressDisplay', 'totalDistanceBox', 'totalTimeBox', 'totalJobsRouteBox'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+            if(printRouteBtnTopElem) printRouteBtnTopElem.style.display = 'none'; // Hide print button
+            // Clear route-specific markers (numbered waypoints)
+            if (window.routeStepMarkers && Array.isArray(window.routeStepMarkers)) {
+                 window.routeStepMarkers.forEach(m => m.setMap(null));
+            }
+            window.routeStepMarkers = []; // Reset array
+            startEndMarkers.forEach(m => m.setMap(null)); // Clear route start/end markers
+            startEndMarkers = [];
+            isRouteCurrentlyCalculated = false; // Update flag
+            // Re-display custom markers and initial start marker if they exist
+            customMarkers.forEach(cm => { // Ensure custom markers are shown based on current `addresses`
+                const addrExists = addresses.some(a => a.id === cm.addressEntryId);
+                if (addrExists) cm.marker.setMap(map); else cm.marker.setMap(null);
+            });
+            if (initialStartMarker && !startEndMarkers.includes(initialStartMarker)) initialStartMarker.setMap(map); // Show initial start marker if not part of a route
+            // Optionally re-fit map if only custom markers are left
+            if (customMarkers.length > 0 && !isRouteCurrentlyCalculated) {
+                 fitMapToMarkers();
+            }
+        }
+
+        // Changes the calculate button text to "Re-calculate Route"
+        function changeToRecalculateButton() {
+            const calcBtn = document.getElementById('calculateRouteBtn');
+            calcBtn.innerHTML = '<i class="fas fa-calculator"></i> Re-calculate Route';
+        }
+
+        // Changes the calculate button text to "Calculate Route"
+        function changeToCalculateButton() {
+            const calcBtn = document.getElementById('calculateRouteBtn');
+            calcBtn.innerHTML = '<i class="fas fa-calculator"></i> Calculate Route';
+        }
+
+
+        // Handles the end of a marker drag operation
+        async function handleMarkerDragEnd(event, draggedMarker) {
+            const newLatLng = event.latLng; // New position of the marker
+            const { originalKey: keyBeforeDrag, originalLatLng: latLngBeforeDrag, addressEntryId } = draggedMarker.appData; // Data from before drag
+
+            try {
+                // Reverse geocode the new location
+                const results = await new Promise((resolve, reject) => {
+                    geocoder.geocode({ 'location': newLatLng, 'region': 'AU' }, (res, status) => {
+                        if (status === 'OK') resolve(res);
+                        else reject(status);
+                    });
+                });
+
+                if (results && results[0]) {
+                    const newGoogleFormattedAddress = results[0].formatted_address;
+                    const newLocationFromGeocode = results[0].geometry.location; // Potentially slightly different from newLatLng due to snapping
+
+                    // Validate new location (Australia, distance)
+                    if (!newGoogleFormattedAddress.toLowerCase().includes("australia")) {
+                        showAddressProcessingNotification([`New location is outside Australia. Marker moved back.`], "Drag Error", 'error');
+                        draggedMarker.setPosition(latLngBeforeDrag); // Revert position
+                        return;
+                    }
+
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(BRISBANE_GPO_LAT_LNG, newLocationFromGeocode);
+                    if (distance > MAX_DISTANCE_METERS) {
+                        showAddressProcessingNotification([`New location for "${newGoogleFormattedAddress}" is too far from Brisbane. Marker moved back.`], "Drag Error: Too Far", 'error');
+                        draggedMarker.setPosition(latLngBeforeDrag);
+                        return;
+                    }
+
+                    // Check if this new location duplicates another existing *custom* marker's geocoded address
+                    const isDuplicateOfOtherMarker = customMarkers.some(cm =>
+                        cm.marker !== draggedMarker && // Not the marker itself
+                        cm.keyIdentifier.toLowerCase() === newGoogleFormattedAddress.toLowerCase()
+                    );
+
+                    if (isDuplicateOfOtherMarker) {
+                         showAddressProcessingNotification([`New location "${newGoogleFormattedAddress}" matches another existing address pin. Marker moved back.`], "Drag Error: Duplicate Pin", 'error');
+                         draggedMarker.setPosition(latLngBeforeDrag); // Revert position
+                         return;
+                    }
+
+                    // Update the address entry in the `addresses` array
+                    const addressToUpdate = addresses.find(addr => addr.id === addressEntryId); // Find by unique ID
+                    if (addressToUpdate) {
+                        addressToUpdate.originalInput = newGoogleFormattedAddress; // Update originalInput to the new geocoded address
+                        addressToUpdate.processedInput = newGoogleFormattedAddress;
+                        addressToUpdate.location = newLocationFromGeocode; // Update location
+                        addressToUpdate.googleFormattedAddress = newGoogleFormattedAddress;
+                        addressToUpdate.geocodeResult = results[0]; // Update full geocode result
+
+                        // Update marker's internal data and title
+                        draggedMarker.appData.originalKey = newGoogleFormattedAddress;
+                        draggedMarker.appData.originalLatLng = newLocationFromGeocode; // Store the geocoded location
+                        draggedMarker.setTitle(newGoogleFormattedAddress); // Update marker title
+
+                        // Update the keyIdentifier in the customMarkers array as well
+                        const customMarkerEntry = customMarkers.find(cm => cm.addressEntryId === addressEntryId);
+                        if (customMarkerEntry) {
+                            customMarkerEntry.keyIdentifier = newGoogleFormattedAddress;
+                        }
+
+                        updateAddressList(); // Refresh the list display
+                        showAddressProcessingNotification([`Address updated to "${newGoogleFormattedAddress}".`], "Address Updated", 'info');
+
+                        // If a route was displayed, it needs recalculation
+                        if (isRouteCurrentlyCalculated) {
+                            showAddressProcessingNotification(["Route cleared due to address change. Recalculating with new fixed order..."], "Recalculating", "info");
+                            calculateRoute(true); // Preserve order of other waypoints
+                        } else {
+                            changeToCalculateButton(); // Or just reset button if no route was shown
+                        }
+
+                    } else {
+                        showAddressProcessingNotification(["Error updating dragged marker. Original address entry not found."], "Drag Error", 'error');
+                        draggedMarker.setPosition(latLngBeforeDrag); // Revert
+                    }
+                } else {
+                    showAddressProcessingNotification(["Could not find address for new location. Marker moved back."], "Drag Error", 'error');
+                    draggedMarker.setPosition(latLngBeforeDrag); // Revert
+                }
+            } catch (status) {
+                showAddressProcessingNotification([`Error finding address: ${status}. Marker moved back.`], "Drag Error", 'error');
+                draggedMarker.setPosition(latLngBeforeDrag); // Revert on error
+            }
+        }
+
+
+        // Removes an address from the list and map
+        function removeAddress(addressIndex) { // addressIndex refers to the index in the `addresses` array
+            if (addressIndex > -1 && addressIndex < addresses.length) {
+                const addressObjToRemove = addresses[addressIndex];
+                addresses.splice(addressIndex, 1); // Remove from global list
+
+                // Remove corresponding marker from customMarkers array and map
+                const markerIndexInCustomMarkers = customMarkers.findIndex(m => m.addressEntryId === addressObjToRemove.id); // Find by unique ID
+                if (markerIndexInCustomMarkers > -1) {
+                    customMarkers[markerIndexInCustomMarkers].marker.setMap(null); // Remove from map
+                    customMarkers.splice(markerIndexInCustomMarkers, 1); // Remove from customMarkers list
+                }
+
+                if (infoWindow) infoWindow.close(); // Close InfoWindow if it was open for this marker
+                updateAddressList(); // Refresh displayed list
+                updateJobCount(); // Update job count
+
+                // If a route was displayed, it needs recalculation
+                if (isRouteCurrentlyCalculated) {
+                    showAddressProcessingNotification(["Address removed. Recalculating route with new fixed order..."], "Recalculating", "info");
+                    calculateRoute(true); // Recalculate preserving order of remaining waypoints
+                } else {
+                     changeToCalculateButton(); // Or just reset button if no route was shown
+                }
+            } else {
+                console.warn("removeAddress: Invalid index:", addressIndex);
+            }
+        }
+
+        // Updates the displayed list of added addresses
+        function updateAddressList() {
+            const addressListEl = document.getElementById('addressList');
+            addressListEl.innerHTML = ''; // Clear existing list items
+            addresses.forEach((addrObj, index) => {
+                const li = document.createElement('li');
+                li.draggable = true; // Make list items draggable
+                li.dataset.addressId = addrObj.id; // Store unique ID for reordering
+
+                const textContainer = document.createElement('div');
+                textContainer.className = 'address-text-container';
+
+                const span = document.createElement('span');
+                span.textContent = escapeHtml(addrObj.originalInput); // Display original input
+                textContainer.appendChild(span);
+
+                const removeButton = document.createElement('button');
+                removeButton.innerHTML = '<i class="fas fa-times-circle"></i>';
+                removeButton.title = "Remove Address";
+                removeButton.onclick = () => {
+                    // Find the current index of this address object in the `addresses` array
+                    // as it might have changed due to reordering or other operations.
+                    const currentIndex = addresses.findIndex(a => a.id === addrObj.id);
+                    if (currentIndex > -1) removeAddress(currentIndex);
+                };
+
+                li.appendChild(textContainer);
+                li.appendChild(removeButton);
+                addressListEl.appendChild(li);
+            });
+        }
+
+        // Helper to get the routable address string from an address object
+        const getRoutable = (addrObj) => addrObj.location || addrObj.googleFormattedAddress || addrObj.processedInput || addrObj.originalInput;
+
+
+        // --- Street View Display Functions ---
+        async function getStreetViewData(location, targetLatLng) { // location is where to look for SV, targetLatLng is direction to face
+            return new Promise((resolve) => {
+                streetViewService.getPanorama({ location: location, radius: 50, source: google.maps.StreetViewSource.OUTDOOR }, (data, status) => {
+                    let result = {
+                        url: null,
+                        heading: 0,
+                        pitch: 0,
+                        panoId: null,
+                        actualLocation: location // Default to input location
+                    };
+
+                    if (status === google.maps.StreetViewStatus.OK && data && data.location && data.location.latLng) {
+                        result.actualLocation = data.location.latLng; // Actual pano location
+                        result.panoId = data.location.pano;
+                        if (targetLatLng) { // Calculate heading towards target
+                             result.heading = google.maps.geometry.spherical.computeHeading(result.actualLocation, targetLatLng);
+                        }
+                        result.pitch = -5; // Slight downward pitch
+                    } else {
+                        // If no SV found, use targetLatLng (or original location) for image generation fallback (though it will be a map tile)
+                        result.actualLocation = targetLatLng || location; // Fallback for image generation if no pano
+                    }
+                    resolve(result); // Resolve with whatever data we have
+                });
+            });
+        }
+
+        // Generates a Street View Image API URL
+        async function generateStreetViewImageUrl(svData, size = "350x250") {
+            if (!svData || !svData.actualLocation) return 'https://placehold.co/' + size.replace('x','/') + '/e0e0e0/909090?text=SV+Error';
+            return `https://maps.googleapis.com/maps/api/streetview?size=${size}&location=${svData.actualLocation.lat()},${svData.actualLocation.lng()}&heading=${svData.heading}&pitch=${svData.pitch}&fov=90&key=${GOOGLE_API_KEY}`;
+        }
+
+
+        // Opens the Street View display panel
+        async function openStreetViewDisplay(locationStr, addressStr) {
+            if (!streetViewDisplayContainerElem || !streetViewDisplayImageElem || !svOpenInMapsBtnBottomElem) return;
+
+            const [lat, lng] = locationStr.split(',').map(Number);
+            currentStreetViewLocation = new google.maps.LatLng(lat, lng); // Store for potential use
+            currentStreetViewAddress = addressStr; // Store for title/link
+
+            // Reset to initial size and state
+            const initialSize = "350x250";
+            streetViewDisplayImageElem.style.width = '350px';
+            streetViewDisplayImageElem.style.height = '250px';
+            streetViewDisplayContainerElem.classList.remove('enlarged');
+
+            streetViewDisplayImageElem.src = 'https://placehold.co/350x250/e0e0e0/909090?text=Loading+SV...'; // Placeholder
+
+            // Get panorama data (location, heading, pitch, panoId)
+            currentStreetViewPanoData = await getStreetViewData(currentStreetViewLocation, currentStreetViewLocation); // Face the location itself initially
+            const svUrl = await generateStreetViewImageUrl(currentStreetViewPanoData, initialSize);
+
+            streetViewDisplayImageElem.src = svUrl;
+            streetViewDisplayImageElem.alt = `Street View of ${addressStr}`;
+
+            // Updated Google Maps link logic
+            if (currentStreetViewPanoData && currentStreetViewPanoData.panoId) {
+                svOpenInMapsBtnBottomElem.href = `http://maps.google.com/?cbll=${currentStreetViewPanoData.actualLocation.lat()},${currentStreetViewPanoData.actualLocation.lng()}&cbp=12,${currentStreetViewPanoData.heading},0,0,${currentStreetViewPanoData.pitch}&layer=c&pano=${currentStreetViewPanoData.panoId}`;
+            } else if (currentStreetViewLocation) {
+                svOpenInMapsBtnBottomElem.href = `http://maps.google.com/?q=${currentStreetViewLocation.lat()},${currentStreetViewLocation.lng()}&ll=${currentStreetViewLocation.lat()},${currentStreetViewLocation.lng()}&cbll=${currentStreetViewLocation.lat()},${currentStreetViewLocation.lng()}&layer=c&cbp=12,${currentStreetViewPanoData.heading || 0},0,0,${currentStreetViewPanoData.pitch || 0}`;
+            } else {
+                svOpenInMapsBtnBottomElem.href = `http://maps.google.com/?q=${encodeURIComponent(addressStr)}`;
+            }
+            streetViewDisplayContainerElem.style.display = 'block';
+        }
+
+        // Closes the Street View display panel
+        function closeStreetViewDisplay() {
+            if (streetViewDisplayContainerElem) streetViewDisplayContainerElem.style.display = 'none';
+            if (streetViewDisplayImageElem) streetViewDisplayImageElem.src = 'https://placehold.co/350x250/e0e0e0/909090?text=Street+View'; // Reset placeholder
+            currentStreetViewLocation = null;
+            currentStreetViewAddress = "";
+            currentStreetViewPanoData = { heading: 0, pitch: 0, panoId: null }; // Reset pano data
+        }
+
+        // Toggles the size of the Street View display image
+        async function toggleStreetViewDisplaySize() {
+            if (!streetViewDisplayContainerElem || !streetViewDisplayImageElem || !currentStreetViewPanoData.actualLocation) return;
+
+            const isEnlarged = streetViewDisplayContainerElem.classList.toggle('enlarged');
+            const newSize = isEnlarged ? "600x450" : "350x250";
+
+            streetViewDisplayImageElem.style.width = isEnlarged ? '600px' : '350px';
+            streetViewDisplayImageElem.style.height = isEnlarged ? '450px' : '250px';
+
+            // Regenerate image with new size (pano data remains the same)
+            const svUrl = await generateStreetViewImageUrl(currentStreetViewPanoData, newSize);
+            streetViewDisplayImageElem.src = svUrl;
+        }
+
+        // --- Street View Hover Preview Logic ---
+        async function handleRouteStepMouseOver(event) {
+            const listItem = event.target.closest('li.has-street-view');
+            if (!listItem) return;
+
+            clearTimeout(hoverTimeout); // Clear any existing timeout
+            hoverTimeout = setTimeout(async () => { // Start new timeout
+                const locationStr = listItem.dataset.location; // Get location from data attribute
+
+                if (locationStr && streetViewHoverPreviewElem && streetViewHoverImageElem && leftPanel) { // Ensure elements exist
+                    const [lat, lng] = locationStr.split(',').map(Number);
+                    const hoverLocation = new google.maps.LatLng(lat, lng);
+
+                    // Get SV data and generate URL for small preview
+                    const svPanoData = await getStreetViewData(hoverLocation, hoverLocation); // Face the location itself
+                    const svUrl = await generateStreetViewImageUrl(svPanoData, "150x100");
+
+
+                    if (svUrl && !svUrl.includes('placehold.co')) { // If a valid SV image was generated
+                        streetViewHoverImageElem.src = svUrl;
+                        const listItemRect = listItem.getBoundingClientRect();
+                        const panelRect = leftPanel.getBoundingClientRect(); // Get left panel dimensions
+
+                        // Position preview to the right of the panel, aligned with list item
+                        let top = listItemRect.top; // Align top with list item
+                        let left = panelRect.right + 10; // 10px to the right of the panel
+
+                        // Adjust if preview goes off-screen
+                        if (left + streetViewHoverPreviewElem.offsetWidth > window.innerWidth - 10) {
+                           left = panelRect.left - streetViewHoverPreviewElem.offsetWidth - 10; // Try left of panel
+                        }
+
+                        if (top + streetViewHoverPreviewElem.offsetHeight > window.innerHeight - 10) {
+                            top = window.innerHeight - 10 - streetViewHoverPreviewElem.offsetHeight; // Adjust top
+                        }
+                        top = Math.max(10, top); // Ensure not off top of screen
+                        left = Math.max(10, left); // Ensure not off left of screen
+
+
+                        streetViewHoverPreviewElem.style.position = 'fixed'; // Use fixed for viewport positioning
+                        streetViewHoverPreviewElem.style.top = `${top}px`;
+                        streetViewHoverPreviewElem.style.left = `${left}px`;
+                        streetViewHoverPreviewElem.style.display = 'block';
+                    } else {
+                        streetViewHoverPreviewElem.style.display = 'none'; // Hide if no SV
+                    }
+                }
+            }, 200); // Delay before showing preview
+        }
+
+        function handleRouteStepMouseOut(event) {
+            const listItem = event.target.closest('li.has-street-view');
+            if (listItem) {
+                if (streetViewHoverPreviewElem) {
+                    clearTimeout(hoverTimeout); // Clear show timeout
+                    // Add a small delay before hiding to allow mouse to move onto preview if needed (though it's pointer-events: none)
+                    setTimeout(() => {
+                        // Check if mouse is still over the original list item or the preview itself (if it had pointer events)
+                        let related = event.relatedTarget;
+                        let stillOverItem = false;
+                        while(related) {
+                            if (related === listItem /* || related === streetViewHoverPreviewElem */) {
+                                stillOverItem = true;
+                                break;
+                            }
+                            related = related.parentNode;
+                        }
+
+                        if (!stillOverItem && !listItem.matches(':hover')) { // If mouse truly left the item
+                            streetViewHoverPreviewElem.style.display = 'none';
+                        }
+                    }, 50);
+                }
+            }
+        }
+
+
+        // Updates the displayed job count
+        function updateJobCount() {
+            document.getElementById('jobCount').textContent = addresses.length; // Number of added addresses
+        }
+
+        // Clears all custom markers from the map
+        function clearCustomMarkers() {
+            customMarkers.forEach(markerObj => markerObj.marker.setMap(null));
+            customMarkers = []; // Reset array
+        }
+        // Clears start/end markers of a calculated route
+        function clearStartEndMarkers() {
+            startEndMarkers.forEach(marker => marker.setMap(null));
+            startEndMarkers = [];
+        }
+
+
+        // Calculates and displays the route
+        async function calculateRoute(preserveWaypointOrder = false) {
+            await Tone.start(); // Ensure audio context is active
+            showLoading("Calculating route...");
+
+            startingAddress = startAddressInputElem.value.trim(); // Ensure global startingAddress is current
+            // Ensure global finishingAddressInputString is current from the input field
+            // UNLESS "Return to Start" is checked (which clears the input and global var).
+            if (!returnToStartCbElem.checked) {
+                finishingAddressInputString = finishingAddressInputElem.value.trim();
+            }
+
+
+            // Basic validation for start address
+            if (!startingAddress) {
+                hideLoading();
+                showAddressProcessingNotification(['Enter a starting address.'], "Input Required", 'warning');
+                changeToCalculateButton();
+                return;
+            }
+
+            // Clear previous map elements
+            customMarkers.forEach(cm => cm.marker.setMap(null));
+            if (initialStartMarker) initialStartMarker.setMap(null);
+            startEndMarkers.forEach(m => m.setMap(null)); startEndMarkers = [];
+            if (window.routeStepMarkers) window.routeStepMarkers.forEach(m => m.setMap(null));
+            window.routeStepMarkers = [];
+            if (infoWindow) infoWindow.close();
+
+            // Get departure time
+            const timeValue = actualDepartureTimeInputElem.value;
+            const [hours, minutes] = timeValue.split(':').map(Number);
+            const departureDateTime = new Date();
+            departureDateTime.setHours(hours, minutes, 0, 0);
+            if (departureDateTime < new Date() && departureDateTime.toDateString() === new Date().toDateString()) {
+                departureDateTime.setDate(departureDateTime.getDate() + 1);
+            }
+
+            let resolvedOrigin = startingAddress; // Start address is taken as is for now
+            let resolvedDestination; // Will hold LatLng for Directions API or string
+            let waypointsForApiRequest = [];
+            let addressObjectsForWaypointsInRequest = [];
+
+            // Resolve Destination
+            if (returnToStartCbElem.checked) {
+                resolvedDestination = startingAddress; // API will geocode this string
+                finishingAddressInputString = startingAddress; // For display consistency
+            } else if (finishingAddressInputString) {
+                let addressToGeocodeForFinish = finishingAddressInputString;
+                try {
+                    console.log(`Attempting to geocode finish address: "${addressToGeocodeForFinish}"`);
+                    const geocodeResults = await geocodePromise(addressToGeocodeForFinish);
+                    if (geocodeResults && geocodeResults[0]) {
+                        resolvedDestination = geocodeResults[0].geometry.location; // Use LatLng for Directions API
+                        finishingAddressInputString = geocodeResults[0].formatted_address; // Update global for display
+                        finishingAddressInputElem.value = finishingAddressInputString; // Update input field visually
+                        console.log(`Geocoded finish address to: "${finishingAddressInputString}"`, resolvedDestination);
+                    } else {
+                        throw { status: 'GEOCODE_EMPTY_RESULTS', originalQuery: addressToGeocodeForFinish };
+                    }
+                } catch (errorInfo) {
+                    hideLoading();
+                    const originalQuery = errorInfo.originalQuery || addressToGeocodeForFinish;
+                    showAddressProcessingNotification(
+                        [`Could not find the finishing address: "${originalQuery}". Please check spelling, be more specific, or select from the autocomplete suggestions.`],
+                        "Finish Address Error", 'error', originalQuery
+                    );
+                    changeToCalculateButton();
+                    return;
+                }
+            } else { // No explicit finish, not returning to start
+                if (addresses.length === 0) {
+                    hideLoading();
+                    showAddressProcessingNotification(['Enter at least one intermediate address or a finishing address.'], "Input Required", 'warning');
+                    changeToCalculateButton();
+                    return;
+                }
+                // Last address in `addresses` array becomes the destination
+                const lastAddressObj = addresses[addresses.length - 1];
+                resolvedDestination = getRoutable(lastAddressObj); // This can be LatLng or string
+                finishingAddressInputString = lastAddressObj.originalInput; // For display consistency
+            }
+
+            // Prepare Waypoints
+            if (returnToStartCbElem.checked || finishingAddressInputString) {
+                // If there's an explicit finish (or return to start), all `addresses` are waypoints
+                if (addresses.length > 0) {
+                    addressObjectsForWaypointsInRequest = [...addresses];
+                }
+            } else {
+                // Implicit finish (last of `addresses` is destination), others are waypoints
+                if (addresses.length > 1) {
+                    addressObjectsForWaypointsInRequest = addresses.slice(0, -1);
+                }
+            }
+            waypointsForApiRequest = addressObjectsForWaypointsInRequest.map(addr => ({ location: getRoutable(addr), stopover: true }));
+
+
+            const request = {
+                origin: resolvedOrigin,
+                destination: resolvedDestination,
+                waypoints: waypointsForApiRequest,
+                travelMode: google.maps.TravelMode.DRIVING,
+                optimizeWaypoints: !preserveWaypointOrder,
+                provideRouteAlternatives: false,
+                drivingOptions: { departureTime: departureDateTime, trafficModel: 'bestguess' },
+                region: 'AU'
+            };
+
+            directionsService.route(request, (response, status) => {
+                hideLoading();
+                if (status === google.maps.DirectionsStatus.OK) {
+                    const route = response.routes[0];
+                    if (!preserveWaypointOrder && route.waypoint_order && route.waypoint_order.length > 0 && addressObjectsForWaypointsInRequest.length > 0) {
+                        const googleOrderedWaypoints = route.waypoint_order.map(index => addressObjectsForWaypointsInRequest[index]).filter(Boolean);
+                        let newGlobalAddressesOrder = [...googleOrderedWaypoints];
+                        if (!returnToStartCbElem.checked && !finishingAddressInputString && addresses.length > 0) { // Implicit destination
+                            const originalImplicitDestination = addresses[addresses.length - 1];
+                            if (originalImplicitDestination && !newGlobalAddressesOrder.find(wp => wp.id === originalImplicitDestination.id)) {
+                                newGlobalAddressesOrder.push(originalImplicitDestination);
+                            }
+                        }
+                        addresses = newGlobalAddressesOrder;
+                        updateAddressList();
+                    }
+
+                    directionsRenderer.setDirections(response);
+                    displayRouteInfo(route); // displayRouteInfo will use global startingAddress and finishingAddressInputString
+                    if (routeStepsPanel) routeStepsPanel.classList.add('visible');
+                    if(printRouteBtnTopElem) printRouteBtnTopElem.style.display = 'inline-flex';
+                    saveRoute();
+                    if (routeSoundSynth) {
+                        const now = Tone.now();
+                        routeSoundSynth.triggerAttackRelease(["C5", "E5", "G5"], "16n", now);
+                        routeSoundSynth.triggerAttackRelease("C6", "8n", now + 0.15);
+                    }
+                    isRouteCurrentlyCalculated = true;
+                    changeToRecalculateButton();
+                } else {
+                    showAddressProcessingNotification([`Route calculation failed: ${status}. Check addresses.`], "Route Error", 'error');
+                    if (routeStepsPanel) routeStepsPanel.classList.remove('visible');
+                    if(printRouteBtnTopElem) printRouteBtnTopElem.style.display = 'none';
+                    placeInitialStartMarker();
+                    customMarkers.forEach(cm => cm.marker.setMap(map));
+                    isRouteCurrentlyCalculated = false;
+                    changeToCalculateButton();
+                }
+            });
+        }
+
+
+        // Displays route information (steps, summary) in the panel
+        function displayRouteInfo(route) { // Removed finalDestinationDisplayAddress parameter, uses globals
+            const listEl = document.getElementById('routeStepsList');
+            const startDispEl = document.getElementById('startingAddressDisplay');
+            const finishDispEl = document.getElementById('finishingAddressDisplay');
+            const distBoxEl = document.getElementById('totalDistanceBox');
+            const timeBoxEl = document.getElementById('totalTimeBox');
+            const jobsRouteBoxEl = document.getElementById('totalJobsRouteBox');
+
+            listEl.innerHTML = "";
+            if (startDispEl) startDispEl.innerHTML = "";
+            if (finishDispEl) finishDispEl.innerHTML = "";
+            if (jobsRouteBoxEl) jobsRouteBoxEl.innerHTML = "";
+
+            if (!route || !route.legs) {
+                distBoxEl.innerHTML = "Distance: N/A"; timeBoxEl.innerHTML = "Time: N/A";
+                if (jobsRouteBoxEl) jobsRouteBoxEl.innerHTML = "Jobs: N/A";
+                if(printRouteBtnTopElem) printRouteBtnTopElem.style.display = 'none';
+                return;
+            }
+
+            if (startDispEl && startingAddress) startDispEl.innerHTML = `Starting from: <b>${escapeHtml(startingAddress.toUpperCase())}</b>`;
+            if (jobsRouteBoxEl) jobsRouteBoxEl.textContent = `Total Jobs: ${addresses.length}`;
+            if(printRouteBtnTopElem) printRouteBtnTopElem.style.display = 'inline-flex';
+
+            // Display the final destination in its dedicated box
+            if (finishDispEl) {
+                if (returnToStartCbElem.checked) {
+                    const lastLeg = route.legs[route.legs.length - 1];
+                    const lastLegTravelTime = (lastLeg.duration_in_traffic || lastLeg.duration).text;
+                    finishDispEl.innerHTML = `Returning to: <b>${escapeHtml(startingAddress.toUpperCase())}</b> <span class="travel-time">(Travel to here: ${lastLegTravelTime})</span>`;
+                } else if (finishingAddressInputString && finishingAddressInputString.trim() !== "") {
+                    const lastLeg = route.legs[route.legs.length - 1];
+                    const lastLegTravelTime = (lastLeg.duration_in_traffic || lastLeg.duration).text;
+                    // Use the (potentially geocoded and updated) global finishingAddressInputString
+                    finishDispEl.innerHTML = `Finishing at: <b>${escapeHtml(finishingAddressInputString.toUpperCase())}</b> <span class="travel-time">(Travel to here: ${lastLegTravelTime})</span>`;
+                } else {
+                    // If the destination was implicit (last item in `addresses` list),
+                    // it will be handled as the last item in the `ol` list.
+                    // So, clear the dedicated finishDispEl.
+                    finishDispEl.innerHTML = "";
+                }
+            }
+
+
+            let totalDistance = 0, totalDuration = 0;
+            const routeBounds = route.bounds;
+            if (!window.routeStepMarkers) window.routeStepMarkers = [];
+            window.routeStepMarkers.forEach(m => m.setMap(null)); window.routeStepMarkers = [];
+            clearStartEndMarkers(); // Clears S/F markers from previous route
+
+            const startLocation = route.legs[0].start_location;
+            const startSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38"><path d="M14 0C6.268 0 0 6.268 0 14c0 7.963 10.594 21.985 12.344 23.656a2.5 2.5 0 003.312 0C17.406 35.985 28 21.963 28 14 28 6.268 21.732 0 14 0z" fill="black"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold" fill="white">S</text></svg>`;
+            const startRouteMarker = new google.maps.Marker({
+                position: startLocation, map: map,
+                icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(startSvg), scaledSize: new google.maps.Size(28, 38), anchor: new google.maps.Point(14, 38)},
+                title: "Start: " + route.legs[0].start_address
+            });
+            startRouteMarker.addListener('mouseover', () => { if (infoWindowCloseTimeout) clearTimeout(infoWindowCloseTimeout); setupInfoWindowInteractions(startRouteMarker, formatInfoWindowContent("Start", route.legs[0].start_address), false); });
+            startRouteMarker.addListener('mouseout', () => { infoWindowCloseTimeout = setTimeout(() => { if (infoWindow) infoWindow.close(); }, 200); });
+            startEndMarkers.push(startRouteMarker);
+
+            route.legs.forEach((leg, i) => {
+                totalDistance += leg.distance.value;
+                totalDuration += (leg.duration_in_traffic ? leg.duration_in_traffic.value : leg.duration.value);
+                const legEndAddr = leg.end_address;
+                const legEndLocation = leg.end_location;
+                const legDurText = (leg.duration_in_traffic || leg.duration).text;
+
+                let dispText = "";
+                let streetViewAvailable = false;
+                let locationForStreetView = legEndLocation.lat() + "," + legEndLocation.lng();
+                let addressForStreetViewTitle = legEndAddr;
+                let currentLegAddressObject = null;
+                let listItemAddressId = null;
+                let isDraggableInList = false;
+
+                // Determine if this leg represents the overall final destination
+                const isLegFinalDestination = (returnToStartCbElem.checked || (finishingAddressInputString && finishingAddressInputString.trim() !== "")) && (i === route.legs.length - 1);
+
+                if (!isLegFinalDestination && i < addresses.length) {
+                    // This leg is an intermediate waypoint from the `addresses` array
+                    currentLegAddressObject = addresses[i];
+                    listItemAddressId = currentLegAddressObject.id;
+                    isDraggableInList = true;
+                    dispText = `<b>${escapeHtml(currentLegAddressObject.originalInput.toUpperCase())}</b>`;
+                    addressForStreetViewTitle = currentLegAddressObject.originalInput;
+                    if (currentLegAddressObject.geocodeResult) {
+                        const locType = currentLegAddressObject.geocodeResult.geometry.location_type;
+                        const types = currentLegAddressObject.geocodeResult.types || [];
+                        if (locType === 'ROOFTOP' || types.includes('street_address') || types.includes('premise')) {
+                            streetViewAvailable = true;
+                            locationForStreetView = currentLegAddressObject.location.lat() + "," + currentLegAddressObject.location.lng();
+                        }
+                    }
+                } else if (isLegFinalDestination) {
+                    // This leg is the final destination (handled by finishDispEl, but we need a marker)
+                    // The title for the marker should be the (geocoded) finishingAddressInputString or startingAddress
+                    addressForStreetViewTitle = returnToStartCbElem.checked ? startingAddress : finishingAddressInputString;
+                    dispText = `<b>${escapeHtml(addressForStreetViewTitle.toUpperCase())}</b>`; // For marker title consistency
+                    // SV for final destination might use its geocoded location
+                    // locationForStreetView is already legEndLocation
+                } else if (i < addresses.length) {
+                     // This case handles the implicit destination (last item of `addresses` when no explicit finish)
+                    currentLegAddressObject = addresses[i];
+                    listItemAddressId = currentLegAddressObject.id;
+                    isDraggableInList = true; // It's part of the draggable list
+                    dispText = `<b>${escapeHtml(currentLegAddressObject.originalInput.toUpperCase())}</b>`;
+                    addressForStreetViewTitle = currentLegAddressObject.originalInput;
+                     if (currentLegAddressObject.geocodeResult) { /* ... SV check ... */ }
+                }
+
+
+                if (isLegFinalDestination) {
+                    // Add Finish Marker
+                    const finishSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38"><path d="M14 0C6.268 0 0 6.268 0 14c0 7.963 10.594 21.985 12.344 23.656a2.5 2.5 0 003.312 0C17.406 35.985 28 21.963 28 14 28 6.268 21.732 0 14 0z" fill="white" stroke="black" stroke-width="1"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold" fill="black">F</text></svg>`;
+                    const finishMarker = new google.maps.Marker({
+                        position: legEndLocation, map: map,
+                        icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(finishSvg), scaledSize: new google.maps.Size(28, 38), anchor: new google.maps.Point(14, 38)},
+                        title: "Finish: " + addressForStreetViewTitle // Use the consistent title
+                    });
+                    finishMarker.addListener('mouseover', () => { if (infoWindowCloseTimeout) clearTimeout(infoWindowCloseTimeout); setupInfoWindowInteractions(finishMarker, formatInfoWindowContent("Finish", addressForStreetViewTitle), false); });
+                    finishMarker.addListener('mouseout', () => { infoWindowCloseTimeout = setTimeout(() => { if (infoWindow) infoWindow.close(); }, 200); });
+                    startEndMarkers.push(finishMarker);
+                } else if (currentLegAddressObject) { // Intermediate waypoint or implicit last waypoint
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `${dispText} <span class="travel-time">(Travel: ${legDurText})</span>`;
+                    listItem.draggable = isDraggableInList;
+                    if (isDraggableInList && listItemAddressId) {
+                        listItem.dataset.addressId = listItemAddressId;
+                    }
+                    if (streetViewAvailable) {
+                        listItem.classList.add('has-street-view');
+                        listItem.dataset.location = locationForStreetView;
+                        listItem.dataset.address = addressForStreetViewTitle;
+                        const svIndicator = document.createElement('i');
+                        svIndicator.className = 'fas fa-street-view street-view-indicator';
+                        svIndicator.title = 'Street View available';
+                        listItem.appendChild(svIndicator);
+                    }
+                    listEl.appendChild(listItem);
+
+                    // Add numbered marker for this waypoint
+                    const routeMarker = new google.maps.Marker({
+                        position: legEndLocation, map: map,
+                        label: { text: (i + 1).toString(), color: "white", fontWeight: "bold" },
+                        title: `${(i + 1)}. ${addressForStreetViewTitle}`
+                    });
+                    // InfoWindow setup for waypoints (interactive if from `addresses` list)
+                    let isInteractiveInfoWindow = !!listItemAddressId;
+                    let infoContentString;
+                    if (listItemAddressId) {
+                        const addrEntry = addresses.find(a => a.id === listItemAddressId);
+                        if (addrEntry) {
+                             infoContentString = `
+                                <div class="custom-infowindow-content">
+                                    <strong>${escapeHtml((i + 1) + ". " + addrEntry.originalInput)}</strong>
+                                    ${legDurText ? `<br><small>Travel: ${escapeHtml(legDurText)}</small>` : ''}
+                                    <div class="marker-actions">
+                                        <span class="marker-action-icon" onclick="setAsStartFromMarker('${addrEntry.id}'); return false;" title="Set as Start"><i class="fas fa-play-circle"></i></span>
+                                        <span class="marker-action-icon" onclick="setAsFinishFromMarker('${addrEntry.id}'); return false;" title="Set as Finish"><i class="fas fa-stop-circle"></i></span>
+                                        <span class="marker-action-icon delete" onclick="deleteAddressFromMarker('${addrEntry.id}'); return false;" title="Delete"><i class="fas fa-trash-alt"></i></span>
+                                    </div>
+                                </div>`;
+                        } else { // Fallback, should not happen if listItemAddressId is set
+                            infoContentString = formatInfoWindowContent(`${(i + 1)}. ${addressForStreetViewTitle}`, legEndAddr, legDurText);
+                            isInteractiveInfoWindow = false;
+                        }
+                    } else { // Should not be reached if logic is correct (non-final leg without addressId)
+                         infoContentString = formatInfoWindowContent(`${(i + 1)}. ${addressForStreetViewTitle}`, legEndAddr, legDurText);
+                         isInteractiveInfoWindow = false;
+                    }
+
+                    routeMarker.addListener('mouseover', () => { if (infoWindowCloseTimeout) clearTimeout(infoWindowCloseTimeout); setupInfoWindowInteractions(routeMarker, infoContentString, isInteractiveInfoWindow); });
+                    routeMarker.addListener('mouseout', () => { infoWindowCloseTimeout = setTimeout(() => { if (infoWindow) infoWindow.close(); }, 200); });
+                    if (isInteractiveInfoWindow) {
+                        routeMarker.addListener('click', () => { if (infoWindowCloseTimeout) clearTimeout(infoWindowCloseTimeout); google.maps.event.trigger(routeMarker, 'mouseover'); });
+                    }
+                    window.routeStepMarkers.push(routeMarker);
+                }
+            });
+
+            if (routeBounds && map) {
+                const panelWidth = leftPanel.offsetWidth;
+                map.fitBounds(routeBounds, { left: panelWidth + 30, top: 60, right: 30, bottom: 30 });
+            }
+            distBoxEl.textContent = `Total Distance: ${(totalDistance / 1000).toFixed(2)} km`;
+            timeBoxEl.textContent = `Total Time: ${formatDuration(totalDuration)}`;
+        }
+
+        // Formats duration from seconds to a readable string (e.g., "1 hr 30 mins")
+        function formatDuration(seconds) {
+            const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+            return (h > 0 ? `${h} hr${h > 1 ? 's':''} `:'') + ((m > 0 || h === 0) ? `${m} min${m !== 1 ? 's':''}`:'') || "0 mins";
+        }
+
+        // --- Event Handlers for Time Input and Traffic Toggle ---
+        function handleTimeInputChange() { this.style.display = 'none'; } // Hide after change
+        function handleTimeInputBlur() { if (this.style.display !== 'none') this.style.display = 'none'; } // Hide on blur if still visible
+        function toggleTimeInput() {
+            actualDepartureTimeInputElem.style.display = actualDepartureTimeInputElem.style.display === 'none' ? 'inline-block' : 'none';
+            if (actualDepartureTimeInputElem.style.display !== 'none') actualDepartureTimeInputElem.focus();
+        }
+
+        function toggleTraffic() {
+            const trafficButton = document.getElementById('toggleTrafficBtn');
+            if (trafficVisible) {
+                trafficLayer.setMap(null);
+                trafficButton.innerHTML = '<i class="fas fa-traffic-light"></i> Show Traffic';
+            } else {
+                trafficLayer.setMap(map);
+                trafficButton.innerHTML = '<i class="fas fa-traffic-light"></i> Hide Traffic';
+            }
+            trafficVisible = !trafficVisible;
+             if(routeOptionsDropdownElem) routeOptionsDropdownElem.style.display = 'none'; // Close dropdown
+        }
+
+        function toggleRouteOptions() {
+            if (routeOptionsDropdownElem) {
+                routeOptionsDropdownElem.style.display = routeOptionsDropdownElem.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        // --- Save, Load, Print Route ---
+        function saveRoute() {
+            const routeData = {
+                start: startAddressInputElem.value,
+                finish: returnToStartCbElem.checked ? "" : finishingAddressInputString, // Save potentially geocoded finish
+                waypoints: addresses.map(addr => ({
+                    originalInput: addr.originalInput,
+                    processedInput: addr.processedInput,
+                    googleFormattedAddress: addr.googleFormattedAddress,
+                    location: { lat: addr.location.lat(), lng: addr.location.lng() },
+                    geocodeResult: addr.geocodeResult,
+                    id: addr.id
+                })),
+                returnToStart: returnToStartCbElem.checked
+            };
+            localStorage.setItem('deliveryOptimizerRouteData', JSON.stringify(routeData));
+            showAddressProcessingNotification(["Route saved!"], "Success", "info");
+            if(routeOptionsDropdownElem) routeOptionsDropdownElem.style.display = 'none';
+        }
+
+        function loadRoute() {
+            const savedData = localStorage.getItem('deliveryOptimizerRouteData');
+            if (savedData) {
+                try {
+                    const routeData = JSON.parse(savedData);
+                    clearAllAddresses();
+
+                    startAddressInputElem.value = routeData.start || "Signal Cl, Lytton QLD 4178";
+                    startingAddress = startAddressInputElem.value.trim();
+                    placeInitialStartMarker();
+
+                    returnToStartCbElem.checked = routeData.returnToStart || false;
+                    if (!returnToStartCbElem.checked && routeData.finish) {
+                        finishingAddressInputElem.value = routeData.finish;
+                        finishingAddressInputString = routeData.finish; // Restore global var
+                    } else {
+                        finishingAddressInputString = ""; // Ensure it's cleared if returning to start or no finish
+                    }
+                    handleReturnToStartChange();
+
+
+                    addresses = routeData.waypoints.map(wp => ({
+                        ...wp,
+                        location: new google.maps.LatLng(wp.location.lat, wp.location.lng),
+                        id: wp.id || (Date.now() + Math.random()).toString()
+                    })) || [];
+
+                    updateAddressList();
+                    updateJobCount();
+
+                    addresses.forEach(addr => {
+                        const existingMarker = customMarkers.find(m => m.addressEntryId === addr.id);
+                        if (!existingMarker) {
+                             const marker = new google.maps.Marker({
+                                position: addr.location, map: map, title: addr.originalInput, draggable: true
+                            });
+                            marker.appData = { originalKey: addr.googleFormattedAddress, originalLatLng: addr.location, addressEntryId: addr.id };
+                            marker.addListener('dragend', (event) => handleMarkerDragEnd(event, marker));
+                            marker.addListener('click', () => handleCustomMarkerClick(addr.id, marker));
+                            customMarkers.push({ keyIdentifier: addr.googleFormattedAddress, marker: marker, addressEntryId: addr.id });
+                        }
+                    });
+                    if (customMarkers.length > 0 || (initialStartMarker && initialStartMarker.getMap())) {
+                         fitMapToMarkers();
+                    }
+                    showAddressProcessingNotification(["Last saved route loaded!"], "Route Loaded", "info");
+                } catch (e) {
+                    console.error("Error loading route:", e);
+                    showAddressProcessingNotification(["Error loading saved route."], "Load Error", "error");
+                    localStorage.removeItem('deliveryOptimizerRouteData');
+                }
+            }
+            if(routeOptionsDropdownElem) routeOptionsDropdownElem.style.display = 'none';
+        }
+
+        function printRoute() {
+            const routeDetailsContent = document.getElementById('routeSteps').innerHTML;
+            const printWindow = window.open('', '_blank', 'height=600,width=800');
+            printWindow.document.write('<html><head><title>Print Route Details</title>');
+            printWindow.document.write(`
+                <style>
+                    body { font-family: 'Roboto', Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                    h2, h3 { color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+                    ol { padding-left: 20px; }
+                    li { margin-bottom: 10px; }
+                    .travel-time { font-style: italic; color: #555; font-size: 0.9em; }
+                    #startingAddressDisplay, #finishingAddressDisplay, #distanceTimeContainer div {
+                        padding: 10px; border: 1px solid #eee; margin-bottom: 12px;
+                        background-color: #f9f9f9; border-radius: 4px;
+                    }
+                    #distanceTimeContainer { display: flex; gap: 10px; }
+                    #totalDistanceBox, #totalTimeBox, #totalJobsRouteBox { flex: 1; text-align: center; }
+                    b { font-weight: 500; }
+                    .street-view-indicator { display: none; }
+                    .route-steps-header #totalJobsRouteBox { float: right; font-size: 0.9em; }
+                </style>
+            `);
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<h1>Route Details</h1>');
+            printWindow.document.write(routeDetailsContent);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); }, 500);
+            if(routeOptionsDropdownElem) routeOptionsDropdownElem.style.display = 'none';
+        }
+
+
+        // Clears all addresses, route, and resets the UI
+        function clearAllAddresses() {
+            addresses = [];
+            finishingAddressInputString = ""; // Clear global finishing address string
+            geocodingQueue = [];
+            currentFailedAddressOriginalInput = null;
+            isProcessingQueue = false;
+            isRouteCurrentlyCalculated = false;
+            changeToCalculateButton();
+
+            const addressListElem = document.getElementById('addressList');
+            if (addressListElem) addressListElem.innerHTML = '';
+            updateJobCount();
+
+            clearCustomMarkers();
+            clearStartEndMarkers();
+            if (window.routeStepMarkers) window.routeStepMarkers.forEach(m => m.setMap(null));
+            window.routeStepMarkers = [];
+            if (initialStartMarker) {
+                initialStartMarker.setMap(null);
+                initialStartMarker = null;
+            }
+
+            if (directionsRenderer) directionsRenderer.setDirections({routes: []});
+            if (infoWindow) infoWindow.close();
+
+            if (routeStepsPanel) routeStepsPanel.classList.remove('visible');
+            ['routeStepsList', 'startingAddressDisplay', 'finishingAddressDisplay', 'totalDistanceBox', 'totalTimeBox', 'totalJobsRouteBox'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+
+            if (startAddressInputElem) {
+                 startAddressInputElem.value = "Signal Cl, Lytton QLD 4178";
+                 startingAddress = startAddressInputElem.value.trim();
+            }
+            if (finishingAddressInputElem) finishingAddressInputElem.value = "";
+            if (returnToStartCbElem) returnToStartCbElem.checked = false;
+            handleReturnToStartChange(); // This will also clear finishingAddressInputString if cb is checked
+            if(printRouteBtnTopElem) printRouteBtnTopElem.style.display = 'none';
+
+            if (map) {
+                map.setCenter(initialMapCenter);
+                map.setZoom(initialMapZoom);
+            }
+
+            if (notificationTimeout) clearTimeout(notificationTimeout);
+            if (addressProcessingNotificationElem) {
+                addressProcessingNotificationElem.classList.remove('show');
+                addressProcessingNotificationElem.style.display = 'none';
+            }
+            if(errorNotificationContainerElem) {
+                errorNotificationContainerElem.style.display = 'none';
+                errorNotificationContainerElem.classList.remove('show');
+                if(errorNotificationMessagesListElem) errorNotificationMessagesListElem.innerHTML = '';
+            }
+            closeStreetViewDisplay();
+            if (streetViewHoverPreviewElem) streetViewHoverPreviewElem.style.display = 'none';
+
+            localStorage.removeItem('deliveryOptimizerRouteData');
+            showAddressProcessingNotification(["All data cleared."], "Data Cleared", 'info');
+            placeInitialStartMarker();
+        }
+
+        // --- New function to copy route summary ---
+        function copyRouteSummary() {
+            const distanceEl = document.getElementById('totalDistanceBox');
+            const timeEl = document.getElementById('totalTimeBox');
+            const copyFeedbackEl = document.getElementById('copyFeedback');
+
+            if (!distanceEl || !timeEl || !copyFeedbackEl) {
+                console.error("Copy summary elements not found.");
+                return;
+            }
+
+            const distanceText = distanceEl.textContent || "";
+            const timeText = timeEl.textContent || "";
+
+            if (!distanceText.trim() && !timeText.trim()) {
+                showAddressProcessingNotification(["No route summary to copy."], "Copy Info", "info");
+                return;
+            }
+
+            const textToCopy = `${distanceText}, ${timeText}`;
+
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    copyFeedbackEl.textContent = "Copied to clipboard!";
+                    copyFeedbackEl.style.backgroundColor = "var(--md-success-color)";
+                } else {
+                    copyFeedbackEl.textContent = "Copy failed!";
+                    copyFeedbackEl.style.backgroundColor = "var(--md-danger-color)";
+                    console.error('Fallback: Oops, unable to copy');
+                }
+            } catch (err) {
+                copyFeedbackEl.textContent = "Copy failed!";
+                copyFeedbackEl.style.backgroundColor = "var(--md-danger-color)";
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+
+            document.body.removeChild(textArea);
+
+            copyFeedbackEl.style.display = 'block';
+            setTimeout(() => {
+                copyFeedbackEl.style.display = 'none';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
